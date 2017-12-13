@@ -1,38 +1,32 @@
-#include <Servo.h>
+#include <Servo.h>;
 
-#define pinS 22   // CHANGE 22 TO THE NUMBER OF PIN YOU ARE USING!!!!   Digital pins connected to the radio receiver ports
-#define pin2 30
+const int pinS=22;  // CHANGE 22 TO THE NUMBER OF PIN YOU ARE USING!!!!   Digital pins connected to the radio receiver ports
+const int pin2=30;
 //Make sure that pin1 is hooked up to the throttle port on the receiver (port 2 on 9x)
 //and that pin2 is hooked up to the rudder port on the receiver (port 4 on 9x)
 
-#define maxval 1870 //PUT YOUR MAX VALUE HERE
-#define minval 1050 // PUT YOUR MIN VALUE HERE
+const int maxval=1870;
+const int minval=1050;
 
 //variaveis para margem de posição neutra
-#define margemn 20
-int neutralh = (maxval-minval)/2 + margemn;
-int neutrall = (maxval-minval)/2 - margemn;
-
-Servo servo;
+const int margemn=20;
 
 //constantes para valores extremantes da ampltude de operação do servo
-#define servoh 100
-#define servol -100
+const int servoh=100;
+const int servol=-100;
 
-int valor;
-int servoh;
-int servol;
+
+int neutralh = (((maxval-minval)/2) + margemn);
+int neutrall = (((maxval-minval)/2) - margemn);
+Servo servo;
+int valor; 
 float delta;
-float output;
-int maxval;
-int minval;
-  
-float range(servoh, servol, valor, maxval, minval)
 
+float range(servoh, servol, valor, maxval, minval){ 
   delta = (valor-minval)/maxval;
   ouput = delta*servoh+servol;
-  return output
-
+  return output;
+}
 
 void setup() {
   
