@@ -1,0 +1,118 @@
+#include <SoftwareSerial.h>
+#include <TinyGPS.h>
+#include <Servo.h>
+ 
+ 
+Servo servo; // Variável Servo
+ 
+
+
+//float distancia_entre;
+//distancia_entre = gps1.distance_between(lat1, long1, lat2, long2);
+
+//float sentido_para;
+//sentido_para = gps1.course_to(lat1, long1, lat2, long2);
+
+
+
+SoftwareSerial serial1(10, 11); // RX, TX
+TinyGPS gps1;
+
+void setup() {
+   serial1.begin(9600);
+   Serial.begin(9600);
+
+   Serial.println("O GPS do Brincando com Ideias aguarda pelo sinal dos satelites...");
+   
+   
+   servo.attach(6);  //Define a porta a ser ligada ao servo, a 7
+   //Serial.begin(9600);  
+   servo.write(0); // Inicia motor posição zero
+   int pos
+   int soma_rumos = 0
+   int marcador_rumos = 0
+   int rumo_medio 
+  
+  
+}
+
+
+
+void loop() {
+
+  bool recebido = false;
+
+  while (serial1.available()) {
+     char cIn = serial1.read();
+     recebido = gps1.encode(cIn);
+  }
+
+  if (recebido) {
+    //Latitude e Longitude
+     long lat, lon;
+     double latitude, longitude;
+     gps1.get_position(&lat, &lon);     
+
+     if (lat != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Latitude: ");
+        Serial.println(float(lat) / 100000, 6);
+        latitude = lat;
+     }
+
+     if (lon != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Longitude: ");
+        Serial.println(float(lon) / 100000, 6);
+        longitude = lon;
+     }
+
+     //rumo_real (em centesima de graus)(dado pelo gps)
+     unsigned long rumo_real;
+     rumo_real = gps1.course();
+    
+     
+     //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
+     unsigned long rumo_ideal;
+     rumo_ideal = gps1.course_to(latitude, longitude, lat2, lon2);  //lat2 e lon2 numa lista de waypoints//
+
+     Serial.print("Rumo Real (grau): ");
+     Serial.println(float(rumo_real) / 100, 2);
+     rumos += rumo_real
+     marcador_rumos ++
+     
+     Serial.print("Rumo Ideal (grau): ");
+     Serial.println(float(rumo_ideal) / 100, 2);
+     
+     
+     
+     //PILOTO AUTOMÁTICO//
+     
+     if (marcador_rumos > 10) {
+     rumo_medio = rumos / marcador_rumos
+     
+     //VENTO FAVORAVEL//
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     rumos = 0
+     marcador_rumos = 0
+     }
+     
+     //MOVE SERVO//
+     
+     servo.write(pos);
+     
+     
+     
+     
+     
+     
+     
+     
+  }
+}
