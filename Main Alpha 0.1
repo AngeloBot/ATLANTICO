@@ -28,11 +28,18 @@ void setup() {
    servo.attach(6);  //Define a porta a ser ligada ao servo, a 7
    //Serial.begin(9600);  
    servo.write(0); // Inicia motor posição zero
-   int pos
-   int soma_rumos = 0
-   int marcador_rumos = 0
-   int rumo_medio 
-  
+   int pos = 0;
+   int soma_rumos = 0;
+   int marcador_rumos = 0;
+   int rumo_medio ;
+   int delta_rumo;
+   int erro_rumo;
+   
+   int far_left = 0;
+   int left = 0;
+   int right = 0;
+   int far_right = 0;
+   
   
 }
 
@@ -87,25 +94,40 @@ void loop() {
      //PILOTO AUTOMÁTICO//
      
      if (marcador_rumos > 10) {
-     rumo_medio = rumos / marcador_rumos
+     rumo_medio = rumos / marcador_rumos;
+     delta_rumo = rumo_medio - rumo_ideal;
+     
+     if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) > 10 && (delta_rumo) < 180) {
+     erro_rumo = %(delta_rumo)
+     }
+     
+     if ((delta_rumo) < 350  && (delta_rumo) > 180) || (delta_rumo) > -350 && (delta_rumo) < -180)) {
+     erro_rumo = %(delta_rumo - 360)
+     }
      
      //VENTO FAVORAVEL//
+     if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
+     
+     if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) < 350  && (delta_rumo) > 180) ) {    //virar pra direita
+     pos += erro_rumo;
+     }
+     if ((delta_rumo) > 10 && (delta_rumo) < 180 || (delta_rumo) > -350 && (delta_rumo) < -180) {      //virar pra esquerda
+     pos -= erro_rumo;
+     }
+     }
+     
+     //VENTO CONTRA//
      
      
      
-     
-     
-     
-     
-     
-     
-     rumos = 0
-     marcador_rumos = 0
+     rumos = 0;
+     marcador_rumos = 0;
      }
      
      //MOVE SERVO//
      
      servo.write(pos);
+     delay(100);
      
      
      
