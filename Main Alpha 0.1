@@ -14,15 +14,7 @@ Servo servo; // Variável Servo
 //sentido_para = gps1.course_to(lat1, long1, lat2, long2);
 
 
-int ler_sensores(){
-statusFR = digitalRead(pinFR);
-statusR = digitalRead(pinR);
-statusL = digitalRead(pinL);
-statusFL = digitalRead(pinFL);
-}
-int detecta_mov(){
 
-}
 
 SoftwareSerial serial1(10, 11); // RX, TX
 TinyGPS gps1;
@@ -32,41 +24,30 @@ void setup() {
    serial1.begin(9600);
    Serial.begin(9600);
    
-   pinMode(pinR, INPUT);
-   pinMode(pinL, INPUT);
-   pinMode(pinFR, INPUT);
-   pinMode(pinFL, INPUT);
+ 
 
    Serial.println("O GPS está aguardando pelo sinal dos satelites...");
    
    servo.attach(6);  //Define a porta a ser ligada ao servo, a 6
-   
-   //Serial.begin(9600);  
    servo.write(0); // Inicia motor posição zero
-   int pos = 0;
-   int soma_rumos = 0;
-   int marcador_rumos = 0;
-   int rumo_medio ;
-   int delta_rumo;
-   int erro_rumo;
    
-   // status instant.
-   int statusFR;
-   int statusR;
-   int statusL;
-   int statusFL; 
+   float pos = 0;
+   float soma_rumos = 0;
+   float marcador_rumos = 0;
+   float rumo_medio ;
+   float delta_rumo;
+   float erro_rumo;
+   bool em_bordo = false;
+   bool estava_contra = false;
+   float far_left = 0;
+   float left = 0;
+   float right = 0;
+   float far_right = 0;
+   float contador_pane = 0;
+   
 
-   //pin FAR RIGHT 
-   int pinFR = 10;
 
-   //pin RIGHT
-   int pinR= 3;
-
-   //pin LEFT
-   int pinL= 5;
-
-   //pin FAR LEFT
-   int pinFL = 9;
+  
    
   
 }
@@ -76,43 +57,51 @@ void setup() {
 void loop() {
 
   bool recebido = false;
+  static unsigned long delayPrint;
 
   while (serial1.available()) {
      char cIn = serial1.read();
-     recebido = gps1.encode(cIn);
+     recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
   }
 
-  if (recebido) {
-    //Latitude e Longitude
-     long lat, lon;
-     double latitude, longitude;
-     gps1.get_position(&lat, &lon);     
-
-     if (lat != TinyGPS::GPS_INVALID_F_ANGLE) {
-        Serial.print("Latitude: ");
-        Serial.println(float(lat) / 100000, 6);
-        latitude = lat;
-     }
-
-     if (lon != TinyGPS::GPS_INVALID_F_ANGLE) {
-        Serial.print("Longitude: ");
-        Serial.println(float(lon) / 100000, 6);
-        longitude = lon;
-     }
-
-     //rumo_real (em centesima de graus)(dado pelo gps)
-     unsigned long rumo_real;
-     rumo_real = gps1.course();
-    
+ if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas após receber o primeiro sinal. Após o primeiro sinal, mostra a cada segundo.
+     delayPrint = millis();
      
-     //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     unsigned long rumo_ideal;
-     rumo_ideal = gps1.course_to(latitude, longitude, lat2, lon2);  //lat2 e lon2 numa lista de waypoints//
+     Serial.println("----------------------------------------");
+  
+  //Latitude e Longitude
+     float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
+     unsigned long idadeInfo;
+     gps1.f_get_position(&latitude, &longitude, &idadeInfo);   //O método f_get_position é mais indicado para retornar as coordenadas em variáveis float, para não precisar fazer nenhum cálculo 
+  
+     if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Latitude: ");
+        Serial.println(latitude, 6);  //Mostra a latitude com a precisão de 6 dígitos decimais
+     }
 
-     Serial.print("Rumo Real (grau): ");
-     Serial.println(float(rumo_real) / 100, 2);
-     rumos += rumo_real
-     marcador_rumos ++
+     if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Longitude: ");
+        Serial.println(longitude, 6);  //Mostra a longitude com a precisão de 6 dígitos decimais
+     }
+  
+    //sentido (em centesima de graus)
+     unsigned long sentido;
+     unsigned long rumo_real;
+     sentido = gps1.course();
+
+     //rumo_real
+     Serial.print("Rumo real (grau): ");
+     Serial.println(float(sentido) / 100, 2);
+     rumo_real = sentido / 100;
+
+     //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
+     float rumo_ideal;
+     rumo_ideal = gps1.course_to(latitude, longitude, lat2, lon2);  //lat2 e lon2 numa lista de waypoints//
+     Serial.print("Rumo Ideal (grau): ");
+     Serial.println(float(rumo_ideal) / 100, 2);
+   
+     soma_rumos += rumo_real;
+     marcador_rumos ++;
      
      Serial.print("Rumo Ideal (grau): ");
      Serial.println(float(rumo_ideal) / 100, 2);
@@ -121,41 +110,135 @@ void loop() {
      
      //PILOTO AUTOMÁTICO//
      
-     if (marcador_rumos > 10) {
-     rumo_medio = rumos / marcador_rumos;
+     if (marcador_rumos > 10 || !em_bordo){
+     rumo_medio = soma_rumos / marcador_rumos;
      delta_rumo = rumo_medio - rumo_ideal;
      
-     if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) > 10 && (delta_rumo) < 180) {
-     erro_rumo = %(delta_rumo)
+       if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) > 10 && (delta_rumo) < 180) {
+        erro_rumo = abs(delta_rumo);
+       }
+     
+       if ((delta_rumo) < 350  && (delta_rumo) > 180) || (delta_rumo) > -350 && (delta_rumo) < -180)) {
+        erro_rumo = abs(delta_rumo - 360);
+       }
+     
+       //VENTO FAVORAVEL//
+       if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
+     
+          if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) < 350  && (delta_rumo) > 180) ) {    //virar pra direita
+            if ! estava_contra {
+              pos += erro_rumo;
+            }
+            else {
+              pos += 5;
+            }
+          if ((delta_rumo) > 10 && (delta_rumo) < 180 || (delta_rumo) > -350 && (delta_rumo) < -180) {      //virar pra esquerda
+            if !estava_contra {
+              pos -= erro_rumo;
+            }
+            else {
+               pos -= 5;
+            }
+           
+          }
+          estava_contra = false;
+       }
+     
+       //VENTO CONTRA//
+     
+      //VENTO CONTRA POR BORESTE//
+      
+      if (far_right == 1 || right == 1) {
+         
+         if (far_right == 1 && right == 1) {
+         pos -= 5;
+         }
+         
+         if (far_right == 0 && right == 1) {
+         pos -= 15;
+         }
+      
+      
+      estava_contra = true;
+      }
+      
+      
+      //VENTO CONTRA POR BOMBORDO//
+     
+      if (far_left == 1 || left == 1) {
+      
+         if (far_left == 1 && left == 1) {
+         pos += 5;
+         }
+         
+         if (far_left == 0 && left == 1) {
+         pos += 15;
+         }
+     
+      estava_contra = true
      }
      
-     if ((delta_rumo) < 350  && (delta_rumo) > 180) || (delta_rumo) > -350 && (delta_rumo) < -180)) {
-     erro_rumo = %(delta_rumo - 360)
+     
+       soma_rumos = 0;
+       marcador_rumos = 0;
      }
      
-     //VENTO FAVORAVEL//
-     if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
      
-     if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) < 350  && (delta_rumo) > 180) ) {    //virar pra direita
-     pos += erro_rumo;
+     //BORDO//
+     
+    if ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) > 10 && (delta_rumo) < 180) {
+        erro_rumo = abs(delta_rumo);
+       }
+     
+    if ((delta_rumo) < 350  && (delta_rumo) > 180) || (delta_rumo) > -350 && (delta_rumo) < -180)) {
+        erro_rumo = abs(delta_rumo - 360);
+       }
+     
+     //BORDO A BORESTE
+     if (!em_bordo && far_right == 1 && right == 0 && erro_rumo > 90 && ((delta_rumo) < -10 && (delta_rumo) > -180 || (delta_rumo) < 350  && (delta_rumo) > 180) )) {
+           pos = 150;
+           em_bordo = true;
+         }
+     
+     
+     //BORDO A BOMBORDO//
+     
+     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && ((delta_rumo) > 10 && (delta_rumo) < 180 || (delta_rumo) > -350 && (delta_rumo) < -180){
+            pos = 30;
+            em_bordo = true;
      }
-     if ((delta_rumo) > 10 && (delta_rumo) < 180 || (delta_rumo) > -350 && (delta_rumo) < -180) {      //virar pra esquerda
-     pos -= erro_rumo;
+     
+     //FIM DO BORDO//
+     
+     if (em_bordo) {
+        contador_pane += 1;
+        if (erro_rumo < 5) {
+           pos = 90;
+           em_bordo = false;
+           contador_pane = 0;
+           }
      }
-     }
      
-     //VENTO CONTRA//
+     //MODO PANE//
      
+     if (contador_pane > 20) {
+         pos = 90;
+         em_bordo = false;
+         servo.write(pos);
+         delay(10000);
+     } 
      
-     
-     rumos = 0;
-     marcador_rumos = 0;
-     }
+     erro_rumo = 0;
      
      //MOVE SERVO//
      
+     //colocar código pra impedir pos negativo ou maior que 180
      servo.write(pos);
      delay(100);
+     
+     
+     
+     //PROXIMO WAYPOINT
      
      
      
