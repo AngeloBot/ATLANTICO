@@ -1,9 +1,11 @@
+#include <PWMServo.h>
+
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 #include <Servo.h>
  
  
-Servo servo; // Variável Servo
+PWMServo servo; // Variável Servo
  
 
 
@@ -39,7 +41,7 @@ SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
 
 void setup() {
-   pinMode(3,OUTPUT);
+
    serial1.begin(9600);
    Serial.begin(9600);
    
@@ -47,9 +49,9 @@ void setup() {
 
    Serial.println("O GPS está aguardando pelo sinal dos satelites...");
    
-   servo.attach(3);  //Define a porta a ser ligada ao servo, a 5
+   servo.attach(SERVO_PIN_A);  //Define a porta a ser ligada ao servo, a 5
    servo.write(90); // Inicia motor posição zero
-   Serial.println("lalala");
+   Serial.println("servo iniciado em 90");
 
  
 }
@@ -126,21 +128,21 @@ void loop() {
           if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) {    //virar pra boreste
             if (!estava_contra) {
               pos += erro_rumo;
-              Serial.println("a");
+              Serial.println("virou a boreste no piloto automaatico favoravel");
             }
             else {     //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
               pos += 5;
-              Serial.println("b");
+              Serial.println("orçou para boreste no piloto automatico favoravel");
             }
           }
           if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {      //virar pra bombordo
             if (!estava_contra) {
               pos -= erro_rumo;
-              Serial.println("c");
+              Serial.println("virou a bombordo no piloto automatico favoravel");
             }
             else {
                pos -= 5;      //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
-               Serial.println("d");
+               Serial.println("orçou a bombordo no piloto automatico favoravel");
             }   
          }
           estava_contra = false;
@@ -152,12 +154,12 @@ void loop() {
          
          if (far_right == 1 && right == 1) {
          pos -= 5;
-         Serial.println("ë");
+         Serial.println("arribou a bombordo");
          }
          
          if (far_right == 0 && right == 1) {
          pos -= 15;
-         Serial.println("f");
+         Serial.println("arribou incisivamente a bombordo");
          contador_pane_contra += 1;
          }
     
@@ -170,12 +172,12 @@ void loop() {
       
          if (far_left == 1 && left == 1) {
          pos += 5;
-         Serial.println("g");
+         Serial.println("arribou a boreste");
          }
          
          if (far_left == 0 && left == 1) {
          pos += 15;
-         Serial.println("h");
+         Serial.println("arribou incisivamente a boreste");
          contador_pane_contra += 1;         
          }
      
@@ -208,7 +210,7 @@ void loop() {
      if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ) {
            pos = 180;
            servo.write(pos);
-           Serial.println("1");
+           Serial.println("comando de bordo para boreste");
            delay(500);
            em_bordo = true;
          }
@@ -218,7 +220,7 @@ void loop() {
      if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))){
             pos = 0;
             servo.write(pos);
-            Serial.println("2");
+            Serial.println("comando de bordo para bombordo");
             delay(500);
             em_bordo = true;
      }
@@ -230,7 +232,7 @@ void loop() {
         if (erro_rumo2 < 10) {     //talvez seja melhor usar aqui que o hall oposto ligue
            pos = 90;
            servo.write(pos);
-           Serial.println("3");
+           Serial.println("término de bordo");
            delay(300);
            em_bordo = false;
            contador_pane_bordo = 0;
@@ -243,7 +245,7 @@ void loop() {
          pos = 90;
          em_bordo = false;
          servo.write(pos);
-         Serial.println("4");
+         Serial.println("modo pane acionado");
          delay(10000);
          contador_pane_bordo = 0;
          contador_pane_contra = 0;
@@ -253,18 +255,299 @@ void loop() {
      
      if (pos > 180) {     //impede angulos impossiveis pro servo
          pos = 180;
-         Serial.println("lilili");
+         Serial.println("leme corrigido para 180");
          }
      if (pos < 0) {
          pos = 0;
-         Serial.println("lololo");
+         Serial.println("leme corrigido para 0");
          }
          
      if (em_bordo == false) {
-         servo.write(90);
+         servo.write(pos);
+         Serial.print("pos = ");
          Serial.println(pos);
-         Serial.println("5");
-         delay(4000);       //talvez tenha qe aumentar esse delay pra dar tempo do barco responder
+         Serial.println("leme acionado em piloto automatico");
+         delay(2000);       //talvez tenha qe aumentar esse delay pra dar tempo do barco responder
+         }              //talvez tenha que voltar um pouco o leme depois que mover
+     
+     
+     
+     //PROXIMO WAYPOINT
+     
+     distancia = gps1.distance_between(latitude, longitude, -23.0000, -45.0000);
+     if (distancia < distancia_waypoint) {
+     
+     }
+    #include <PWMServo.h>
+
+#include <SoftwareSerial.h>
+#include <TinyGPS.h>
+#include <Servo.h>
+ 
+ 
+PWMServo servo; // Variável Servo
+ 
+
+
+//float distancia_entre;
+//distancia_entre = gps1.distance_between(lat1, long1, lat2, long2);
+
+//float sentido_para;
+//sentido_para = gps1.course_to(lat1, long1, lat2, long2);
+
+   float pos = 90;
+   float soma_rumos = 0;
+   float marcador_rumos = 0;
+   float rumo_ideal;
+   float rumo_real;
+   float rumo_medio;
+   float delta_rumo;
+   float delta_rumo2;
+   float erro_rumo;
+   float erro_rumo2;
+   bool em_bordo = false;
+   bool estava_contra = false;
+   float far_left = 0;
+   float left = 0;
+   float right = 0;
+   float far_right = 0;
+   float contador_pane_bordo = 0;
+   float contador_pane_contra = 0;
+   float distancia_waypoint = 99;
+   float distancia;
+   float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
+   
+SoftwareSerial serial1(6, 7); // RX, TX
+TinyGPS gps1;
+
+void setup() {
+
+   serial1.begin(9600);
+   Serial.begin(9600);
+   
+ 
+
+   Serial.println("O GPS está aguardando pelo sinal dos satelites...");
+   
+   servo.attach(SERVO_PIN_A);  //Define a porta a ser ligada ao servo, a 5
+   servo.write(90); // Inicia motor posição zero
+   Serial.println("servo iniciado em 90");
+
+ 
+}
+
+
+
+void loop() {
+
+  bool recebido = false;
+  static unsigned long delayPrint;
+
+  while (serial1.available()) {
+     char cIn = serial1.read();
+     recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
+  }
+
+ if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas após receber o primeiro sinal. Após o primeiro sinal, mostra a cada segundo.
+     delayPrint = millis();
+     
+     Serial.println("----------------------------------------");
+  
+  //Latitude e Longitude
+     
+     unsigned long idadeInfo;
+     gps1.f_get_position(&latitude, &longitude, &idadeInfo);   //O método f_get_position é mais indicado para retornar as coordenadas em variáveis float, para não precisar fazer nenhum cálculo 
+  
+     if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Latitude: ");
+        Serial.println(latitude, 6);  //Mostra a latitude com a precisão de 6 dígitos decimais
+     }
+
+     if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+        Serial.print("Longitude: ");
+        Serial.println(longitude, 6);  //Mostra a longitude com a precisão de 6 dígitos decimais
+     }
+  
+    //sentido (em centesima de graus)
+     unsigned long sentido;
+     sentido = gps1.course();
+
+     //rumo_real
+     Serial.print("Rumo real (grau): ");
+     Serial.println(float(sentido) / 100, 2);
+     rumo_real = sentido / 100;
+
+     //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
+     rumo_ideal = gps1.course_to(latitude, longitude, -23.578441, -46.744694);        //lat2 e lon2 numa lista de waypoints//
+     Serial.print("Rumo Ideal (grau): ");
+     Serial.println(float(rumo_ideal), 2);    //precisa dividir o resultado da funçao por 100?
+   
+     soma_rumos += rumo_real;
+     marcador_rumos ++;
+
+  }
+     
+     
+     //PILOTO AUTOMÁTICO//
+     
+     if (marcador_rumos > 10 && !em_bordo){      //falta verificar a média dos hall
+     rumo_medio = soma_rumos / marcador_rumos;
+     delta_rumo = rumo_medio - rumo_ideal;
+     
+       if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
+        erro_rumo = abs(delta_rumo);
+       }
+     
+       if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
+        erro_rumo = abs(delta_rumo - 360);
+       }
+     
+       //VENTO FAVORAVEL//
+       if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
+     
+          if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) {    //virar pra boreste
+            if (!estava_contra) {
+              pos += erro_rumo;
+              Serial.println("virou a boreste no piloto automaatico favoravel");
+            }
+            else {     //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
+              pos += 5;
+              Serial.println("orçou para boreste no piloto automatico favoravel");
+            }
+          }
+          if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {      //virar pra bombordo
+            if (!estava_contra) {
+              pos -= erro_rumo;
+              Serial.println("virou a bombordo no piloto automatico favoravel");
+            }
+            else {
+               pos -= 5;      //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
+               Serial.println("orçou a bombordo no piloto automatico favoravel");
+            }   
+         }
+          estava_contra = false;
+       }
+     
+      //VENTO CONTRA POR BORESTE//
+      
+      if (far_right == 1 || right == 1) {
+         
+         if (far_right == 1 && right == 1) {
+         pos -= 5;
+         Serial.println("arribou a bombordo");
+         }
+         
+         if (far_right == 0 && right == 1) {
+         pos -= 15;
+         Serial.println("arribou incisivamente a bombordo");
+         contador_pane_contra += 1;
+         }
+    
+      estava_contra = true;
+      }
+      
+      //VENTO CONTRA POR BOMBORDO//
+     
+      if (far_left == 1 || left == 1) {
+      
+         if (far_left == 1 && left == 1) {
+         pos += 5;
+         Serial.println("arribou a boreste");
+         }
+         
+         if (far_left == 0 && left == 1) {
+         pos += 15;
+         Serial.println("arribou incisivamente a boreste");
+         contador_pane_contra += 1;         
+         }
+     
+      estava_contra = true;
+     }
+    
+          soma_rumos = 0;
+          marcador_rumos = 0;
+   }
+     
+     
+     if (left == 0 && right == 0) {       //zera os marcadores de pane se o vento não está mais contra
+         contador_pane_contra = 0;
+         }
+         
+     
+     //BORDO//
+     
+    delta_rumo2 = rumo_real - rumo_ideal;        //aqui usa o rumo_real, pq o rumo muda rápido durante o bordo
+     
+    if (((delta_rumo2) < -10 && (delta_rumo2) > -180) || ((delta_rumo2) > 10 && (delta_rumo2) < 180)) {
+        erro_rumo2 = abs(delta_rumo);
+       }
+     
+    if (((delta_rumo2) < 350  && (delta_rumo2) > 180) || ((delta_rumo2) > -350 && (delta_rumo2) < -180)) {
+        erro_rumo2 = abs(delta_rumo - 360);
+       }
+     
+     //BORDO A BORESTE//
+     if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ) {
+           pos = 180;
+           servo.write(pos);
+           Serial.println("comando de bordo para boreste");
+           delay(500);
+           em_bordo = true;
+         }
+    
+     //BORDO A BOMBORDO//
+     
+     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))){
+            pos = 0;
+            servo.write(pos);
+            Serial.println("comando de bordo para bombordo");
+            delay(500);
+            em_bordo = true;
+     }
+     
+     //FIM DO BORDO//
+     
+     if (em_bordo) {
+        contador_pane_bordo += 1;
+        if (erro_rumo2 < 10) {     //talvez seja melhor usar aqui que o hall oposto ligue
+           pos = 90;
+           servo.write(pos);
+           Serial.println("término de bordo");
+           delay(300);
+           em_bordo = false;
+           contador_pane_bordo = 0;
+           }
+     }
+     
+     //MODO PANE//
+     
+     if ((contador_pane_bordo > 20) || (contador_pane_contra > 20)) {
+         pos = 90;
+         em_bordo = false;
+         servo.write(pos);
+         Serial.println("modo pane acionado");
+         delay(10000);
+         contador_pane_bordo = 0;
+         contador_pane_contra = 0;
+     } 
+     
+     //MOVE SERVO//
+     
+     if (pos > 180) {     //impede angulos impossiveis pro servo
+         pos = 180;
+         Serial.println("leme corrigido para 180");
+         }
+     if (pos < 0) {
+         pos = 0;
+         Serial.println("leme corrigido para 0");
+         }
+         
+     if (em_bordo == false) {
+         servo.write(pos);
+         Serial.print("pos = ");
+         Serial.println(pos);
+         Serial.println("leme acionado em piloto automatico");
+         delay(2000);       //talvez tenha qe aumentar esse delay pra dar tempo do barco responder
          }              //talvez tenha que voltar um pouco o leme depois que mover
      
      
@@ -276,4 +559,3 @@ void loop() {
      
      }
     
-}
