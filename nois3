@@ -1,19 +1,14 @@
 #include <PWMServo.h>
-
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
-#include <Servo.h>
+#include <HMC5883L.h>
+#include <Wire.h> 
  
  
 PWMServo servo; // Variável Servo
  
+HMC5883L bussola; // Variável bussola
 
-
-//float distancia_entre;
-//distancia_entre = gps1.distance_between(lat1, long1, lat2, long2);
-
-//float sentido_para;
-//sentido_para = gps1.course_to(lat1, long1, lat2, long2);
 
    float pos = 90;
    float soma_rumos = 0;
@@ -36,6 +31,9 @@ PWMServo servo; // Variável Servo
    float distancia_waypoint = 99;
    float distancia;
    float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
+   int i; //Variável para contagem
+   float precisao; //Variável parar o melhorar a precisao do valor aferido
+   float declinationAngle; // compensaçao do desvio da bussola para cada waypoint em radianos
    
 SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
@@ -53,13 +51,20 @@ void setup() {
    servo.write(90); // Inicia motor posição zero
    Serial.println("servo iniciado em 90");
 
- 
+   Wire.begin(); //Inicia a comunicação o I2C
+
+   //Configura a bússola
+   bussola = HMC5883L();
+   bussola.SetScale(1.3);
+   bussola.SetMeasurementMode(Measurement_Continuous);
 }
 
 
 
 void loop() {
-
+   
+  //GPS// 
+   
   bool recebido = false;
   static unsigned long delayPrint;
 
@@ -68,10 +73,8 @@ void loop() {
      recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
   }
 
- if ( (recebido) && ((millis() - delayPrint) > 500) ) {  //Mostra apenas após receber o primeiro sinal. Após o primeiro sinal, mostra a cada segundo.
+ if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas após receber o primeiro sinal. Após o primeiro sinal, mostra a cada segundo.
      delayPrint = millis();
-     
-     Serial.println("----------------------------------------");
   
   //Latitude e Longitude
      
@@ -87,20 +90,44 @@ void loop() {
         Serial.print("Longitude: ");
         Serial.println(longitude, 6);  //Mostra a longitude com a precisão de 6 dígitos decimais
      }
-  
-    //sentido (em centesima de graus)
-     unsigned long sentido;
-     sentido = gps1.course();
 
-     //rumo_real
-     Serial.print("Rumo Real (grau): ");
-     Serial.println(float(sentido) / 100, 2);
-     rumo_real = sentido / 100;
+ //Rumo Ideal
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
      rumo_ideal = gps1.course_to(latitude, longitude, -23.578426, -46.744687);        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
-     Serial.println(float(rumo_ideal), 2);    //precisa dividir o resultado da funçao por 100?
+     Serial.println(float(rumo_ideal), 2);    
+   
+   //BUSSOLA//
+   
+    precisao = 0; //Zera a variável para uma nova leitura
+
+    for(i=0;i<100;i++) { //Faz a leitura 100 e armazenar a somatória
+
+    //Pega os dados necessários para o cálculo da bússola digital
+    MagnetometerScaled scaled = bussola.ReadScaledAxis();
+    int MilliGauss_OnThe_XAxis = scaled.XAxis;
+    float heading = atan2(scaled.YAxis, scaled.XAxis);
+    heading += declinationAngle;
+  
+    //Converte o valor aferido para angulo
+    if(heading < 0) {
+      heading += 2*PI;
+    } 
+
+   if(heading > 2*PI) {
+      heading -= 2*PI;
+    }  
+
+    rumo_real = heading * 180/M_PI;
+
+    precisao = precisao + rumo_real;
+    delay(1);
+  }
+
+   rumo_real = precisao/100; //Pega a somatória e tira a média dos valores aferidos
+   Serial.print("Rumo Real (grau): ");
+   Serial.println(rumo_real);
    
      soma_rumos += rumo_real;
      marcador_rumos ++;
@@ -257,7 +284,7 @@ void loop() {
         delay(250);
         Serial.print("contador pane bordo = ");
         Serial.println(contador_pane_bordo);
-        if (erro_rumo2 < 20) {     //talvez seja melhor usar aqui que o hall oposto ligue
+        if (erro_rumo2 < 10) {     //talvez seja melhor usar aqui que o hall oposto ligue
            pos = 90;
            servo.write(pos);
            Serial.println("término de bordo");
