@@ -41,6 +41,7 @@ HMC5883L bussola; // Variável bussola
    float precisao; //Variável parar o melhorar a precisao do valor aferido
    float declinationAngle; // compensaçao do desvio da bussola para cada waypoint em radianos
    float lat2, lon2;
+   float marcador_hall = 0;
    
 SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
@@ -153,7 +154,7 @@ void loop() {
    left += digitalRead(L);
    far_left += digitalRead(FL);
    
-   marcador_hall += 1
+   marcador_hall += 1;
   
      
      
@@ -296,11 +297,11 @@ void loop() {
           soma_rumos = 0;
           marcador_rumos = 0;
               
-    right = 0
-    far_right = 0
-    left = 0
-    far_left = 0
-    marcador_hall = 0
+    right = 0;
+    far_right = 0;
+    left = 0;
+    far_left = 0;
+    marcador_hall = 0;
    }
      
      
