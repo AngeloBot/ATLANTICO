@@ -3,6 +3,12 @@
 #include <TinyGPS.h>
 #include <HMC5883L.h>
 #include <Wire.h> 
+
+//portas dos sensores
+int FR = 0;
+int R = 1;
+int L = 2;
+int FL = 3;
  
  
 PWMServo servo; // Variável Servo
@@ -38,11 +44,22 @@ HMC5883L bussola; // Variável bussola
 SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
 
+
+ right = digitalRead(R);
+ far_right = digitalRead(FR);
+ left = digitalRead(L);
+ far_left = digitalRead(FL);
+
+
+
 void setup() {
 
    serial1.begin(9600);
    Serial.begin(9600);
-   
+   pinMode(FR,INPUT);
+   pinMode(R,INPUT);
+   pinMode(L,INPUT);
+   pinMode(FL,INPUT);
  
 
    Serial.println("O GPS está aguardando pelo sinal dos satelites...");
@@ -90,6 +107,7 @@ void loop() {
         Serial.print("Longitude: ");
         Serial.println(longitude, 6);  //Mostra a longitude com a precisão de 6 dígitos decimais
      }
+     }
 
  //Rumo Ideal
 
@@ -132,16 +150,51 @@ void loop() {
      soma_rumos += rumo_real;
      marcador_rumos ++;
 
-  }
+  // HALL //
+  
+   right += digitalRead(R);
+   far_right += digitalRead(FR);
+   left += digitalRead(L);
+   far_left += digitalRead(FL);
+   
+   marcador_hall += 1
+  
      
      
      //PILOTO AUTOMÁTICO//
      
-     if (marcador_rumos > 4 && !em_bordo){      //falta verificar a média dos hall
+     if (marcador_rumos > 4 && !em_bordo && marcador_hall > 4){      //falta verificar a média dos hall
      Serial.println("iniciado piloto automatico"); 
      rumo_medio = soma_rumos / marcador_rumos;
      
      delta_rumo = rumo_medio - rumo_ideal;
+     
+     
+     
+       if ((right / marcador_hall) >= 0.7) {
+       right = 1;
+       }
+       if ((right / marcador_hall) < 0.7) {
+       right = 0;
+       }
+        if ((far_right / marcador_hall) >= 0.7) {
+       far_right = 1;
+       }
+       if ((far_right / marcador_hall) <= 2 ){
+       far_right = 0;
+       } 
+       if ((left  / marcador_hall) >= 3) {
+       left = 1;
+       }
+       if ((left / marcador_hall)  <= 2) {
+       left = 0;
+       } 
+       if ((far_left / marcador_hall)  >= 3) {
+       far_left = 1;
+       }
+       if(( far_left / marcador_hall)  <= 2 ){
+       far_left = 0;
+       }
      
        if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
         erro_rumo = abs(delta_rumo);
@@ -238,6 +291,12 @@ void loop() {
     
           soma_rumos = 0;
           marcador_rumos = 0;
+              
+    right = 0
+    far_right = 0
+    left = 0
+    far_left = 0
+    marcador_hall = 0
    }
      
      
@@ -339,4 +398,5 @@ void loop() {
      
      }
     
+
 }
