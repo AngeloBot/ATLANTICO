@@ -15,6 +15,8 @@ PWMServo servo; // Variável Servo
  
 HMC5883L bussola; // Variável bussola
 
+float lat2_lon2_desvio = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //lista de latitude, longitude e desvio magnético dos waypoints
+
 
    float pos = 90;
    float soma_rumos = 0;
@@ -34,13 +36,13 @@ HMC5883L bussola; // Variável bussola
    float far_right = 0;
    float contador_pane_bordo = 0;
    float contador_pane_contra = 0;
-   float distancia_waypoint = 99;
+   float distancia_waypoint = 20;
    float distancia;
    float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
    int i; //Variável para contagem
-   float precisao; //Variável parar o melhorar a precisao do valor aferido
+   float precisao; //Variável para melhorar a precisao do valor aferido
    float declinationAngle; // compensaçao do desvio da bussola para cada waypoint em radianos
-   float lat2, lon2;
+   int contador_lista = 0;
    float marcador_hall = 0;
    
 SoftwareSerial serial1(6, 7); // RX, TX
@@ -109,7 +111,7 @@ void loop() {
  //Rumo Ideal
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     rumo_ideal = gps1.course_to(latitude, longitude, -23.578426, -46.744687);        //lat2 e lon2 numa lista de waypoints//
+     rumo_ideal = gps1.course_to(latitude, longitude, (lat2_lon2_desvio [contador_lista], (lat2_lon2_desvio [1+contador_lista]));        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
      Serial.println(float(rumo_ideal), 2);    
    
@@ -123,7 +125,7 @@ void loop() {
     MagnetometerScaled scaled = bussola.ReadScaledAxis();
     int MilliGauss_OnThe_XAxis = scaled.XAxis;
     float heading = atan2(scaled.YAxis, scaled.XAxis);
-    heading += declinationAngle;
+    heading += lat2_lon2_desvio[2 + contador_lista];
   
     //Converte o valor aferido para angulo
     if(heading < 0) {
@@ -400,6 +402,7 @@ void loop() {
      
      distancia = gps1.distance_between(latitude, longitude, -23.0000, -45.0000);
      if (distancia < distancia_waypoint) {
+     contador_lista += 3;
      
      }
     
