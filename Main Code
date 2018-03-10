@@ -400,7 +400,7 @@ void loop() {
      
      //PROXIMO WAYPOINT
      
-     distancia = gps1.distance_between(latitude, longitude, -23.0000, -45.0000);
+     distancia = gps1.distance_between(latitude, longitude, (lat2_lon2_desvio [3+contador_lista], (lat2_lon2_desvio [4+contador_lista]));
      if (distancia < distancia_waypoint) {
      contador_lista += 3;
      
