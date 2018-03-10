@@ -206,11 +206,11 @@ void loop() {
      
      erro_rumo = 0;
      
-       if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180))) {
+       if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
         erro_rumo = abs(delta_rumo);
        }
      
-       if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))) {
+       if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
         erro_rumo = abs(delta_rumo - 360);
        }
        
@@ -220,7 +220,7 @@ void loop() {
        //VENTO FAVORAVEL//
        if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
      
-          if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ){    //virar pra boreste
+          if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ){    //virar pra boreste
             if (!estava_contra) {
               pos = (90 + erro_rumo);            // talvez tenha que mudar o multiplicador
               Serial.println("virou a boreste no piloto automatico favoravel");
@@ -230,7 +230,7 @@ void loop() {
               Serial.println("orçou para boreste no piloto automatico favoravel");
             }
           }
-          if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) ){      //virar pra bombordo
+          if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180) ){      //virar pra bombordo
             if (!estava_contra) {
               pos = (90 - erro_rumo);
               Serial.println("virou a bombordo no piloto automatico favoravel");
@@ -247,7 +247,7 @@ void loop() {
       
       if (far_right == 1 || right == 1) {
         
-         if (((delta_rumo) > 5 && (delta_rumo) < 180) || ((delta_rumo) > -355 && (delta_rumo) < -180))) {      //virar pra bombordo
+         if (((delta_rumo) > 5 && (delta_rumo) < 180) || ((delta_rumo) > -355 && (delta_rumo) < -180)) {      //virar pra bombordo
          pos = 85;
          Serial.println("arribou pq o rumo ideal está mais aberto");
          }
@@ -277,7 +277,7 @@ void loop() {
      
       if (far_left == 1 || left == 1) {
 
-         if (((delta_rumo) < -5 && (delta_rumo) > -180) || ((delta_rumo) < 355  && (delta_rumo) > 180) )) {    //virar pra boreste
+         if (((delta_rumo) < -5 && (delta_rumo) > -180) || ((delta_rumo) < 355  && (delta_rumo) > 180)) {    //virar pra boreste
          pos = 95;
          Serial.println("arribou pq o rumo ideal está mais aberto");
          }
@@ -322,16 +322,16 @@ void loop() {
      
     delta_rumo2 = rumo_real - rumo_ideal;        //aqui usa o rumo_real, pq o rumo muda rápido durante o bordo
      
-    if (((delta_rumo2) < -10 && (delta_rumo2) > -180) || ((delta_rumo2) > 10 && (delta_rumo2) < 180))) {
+    if (((delta_rumo2) < -10 && (delta_rumo2) > -180) || ((delta_rumo2) > 10 && (delta_rumo2) < 180)) {
         erro_rumo2 = abs(delta_rumo);
        }
      
-    if (((delta_rumo2) < 350  && (delta_rumo2) > 180) || ((delta_rumo2) > -350 && (delta_rumo2) < -180))) {
+    if (((delta_rumo2) < 350  && (delta_rumo2) > 180) || ((delta_rumo2) > -350 && (delta_rumo2) < -180)) {
         erro_rumo2 = abs(delta_rumo - 360);
        }
      
      //BORDO A BORESTE//
-     if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ) ){
+     if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ){
            pos = 180;
            servo.write(pos);
            Serial.println("comando de bordo para boreste");
@@ -341,7 +341,7 @@ void loop() {
     
      //BORDO A BOMBORDO//
      
-     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)))){
+     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))){
             pos = 0;
             servo.write(pos);
             Serial.println("comando de bordo para bombordo");
