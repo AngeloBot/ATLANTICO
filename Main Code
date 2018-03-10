@@ -204,6 +204,8 @@ void loop() {
        far_left = 0;
        }
      
+     erro_rumo = 0;
+     
        if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
         erro_rumo = abs(delta_rumo);
        }
