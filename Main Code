@@ -24,8 +24,8 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //li
 
 
    float pos = 90;
-   float soma_rumos = 0;
-   float marcador_rumos = 0;
+   //float soma_rumos = 0;
+   //float marcador_rumos = 0;
    float rumo_ideal;
    float rumo_real;
    float rumo_medio;
@@ -89,7 +89,7 @@ void loop() {
   bool recebido = false;
   static unsigned long delayPrint;
 
-  while (serial1.available()==false) {
+  while (serial1.available()) {
      char cIn = serial1.read();
      recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
   }
@@ -116,7 +116,7 @@ void loop() {
  //Rumo Ideal---------------------------------------------------------------------------------------------------------------------------
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     rumo_ideal = gps1.course_to(latitude, longitude, (lat2_lon2_desvio [contador_lista], (lat2_lon2_desvio [1+contador_lista]));        //lat2 e lon2 numa lista de waypoints//
+     rumo_ideal = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], (lat2_lon2_desvio [1+contador_lista]));        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
      Serial.println(float(rumo_ideal), 2);    
    
@@ -306,8 +306,8 @@ void loop() {
       estava_contra = true;
      }
     
-          soma_rumos = 0;
-          marcador_rumos = 0;
+         // soma_rumos = 0;
+         // marcador_rumos = 0;
               
     right = 0;
     far_right = 0;
