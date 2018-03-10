@@ -1,7 +1,7 @@
 #include <PWMServo.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
-#include <HMC5883L.h>
+#include <Adafruit_HMC5883_U.h>
 #include <Wire.h> 
 
 //portas dos sensores
@@ -13,7 +13,7 @@ int FL = 3;
  
 PWMServo servo; // Variável Servo
  
-HMC5883L bussola; // Variável bussola
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);   // SCL na A5, SDA na A4
 
 float lat2_lon2_desvio = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //lista de latitude, longitude e desvio magnético dos waypoints
 
@@ -41,7 +41,6 @@ float lat2_lon2_desvio = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //list
    float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
    int i; //Variável para contagem
    float precisao; //Variável para melhorar a precisao do valor aferido
-   float declinationAngle; // compensaçao do desvio da bussola para cada waypoint em radianos
    int contador_lista = 0;
    float marcador_hall = 0;
    
@@ -66,13 +65,14 @@ void setup() {
    servo.attach(SERVO_PIN_A);  //Define a porta a ser ligada ao servo, a 9
    servo.write(90); // Inicia motor posição zero
    Serial.println("servo iniciado em 90");
+ 
+ 
+ // inicializa a bússola e aguarda pelo sinal
+  if(!mag.begin()){
 
-   Wire.begin(); //Inicia a comunicação o I2C
+    while(1);
+  }
 
-   //Configura a bússola
-   bussola = HMC5883L();
-   bussola.SetScale(1.3);
-   bussola.SetMeasurementMode(Measurement_Continuous);
 }
 
 
@@ -121,11 +121,11 @@ void loop() {
 
     for(i=0;i<100;i++) { //Faz a leitura 100 e armazenar a somatória
 
-    //Pega os dados necessários para o cálculo da bússola digital
-    MagnetometerScaled scaled = bussola.ReadScaledAxis();
-    int MilliGauss_OnThe_XAxis = scaled.XAxis;
-    float heading = atan2(scaled.YAxis, scaled.XAxis);
-    heading += lat2_lon2_desvio[2 + contador_lista];
+     sensors_event_t event; 
+     mag.getEvent(&event);
+     float heading = atan2(event.magnetic.y, event.magnetic.x);
+   
+     heading += lat2_lon2_desvio[2 + contador_lista];
   
     //Converte o valor aferido para angulo
     if(heading < 0) {
@@ -136,13 +136,13 @@ void loop() {
       heading -= 2*PI;
     }  
 
-    rumo_real = heading * 180/M_PI;
+    rumo_real = heading * 180/M_PI;    //converte pra graus
 
-    precisao = precisao + rumo_real;
+    precisao = precisao + rumo_real;    //vai somando na precisão pra depois dividir por 100
     delay(1);
   }
 
-   rumo_real = precisao/100; //Pega a somatória e tira a média dos valores aferidos
+   rumo_real = precisao / 100; //Pega a somatória e tira a média dos valores aferidos
    Serial.print("Rumo Real (grau): ");
    Serial.println(rumo_real);
    
