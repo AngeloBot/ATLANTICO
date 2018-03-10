@@ -4,6 +4,10 @@
 #include <Adafruit_HMC5883_U.h>
 #include <Wire.h> 
 
+// servo - marrom gnd, vermelho vcc, laranja 9
+// gps - rx na 6, tx na 7, desconectar antes de compilar
+// bussola - scl na A5, sda na A4
+
 //portas dos sensores
 int FR = 0;
 int R = 1;
