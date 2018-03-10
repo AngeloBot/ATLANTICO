@@ -84,7 +84,7 @@ void loop() {
   bool recebido = false;
   static unsigned long delayPrint;
 
-  while (serial1.available()) {
+  while (serial1.available()==false) {
      char cIn = serial1.read();
      recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
   }
