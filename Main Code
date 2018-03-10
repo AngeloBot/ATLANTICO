@@ -166,7 +166,7 @@ void loop() {
      
      //PILOTO AUTOMÁTICO//
      
-     if (marcador_rumos > 4 && !em_bordo && marcador_hall > 4){      //ver a velocidade dos dados de hall e rumo 
+     if (marcador_rumos >=2 && !em_bordo && marcador_hall >= 2){      //ver a velocidade dos dados de hall e rumo 
      Serial.println("iniciado piloto automatico"); 
      
      rumo_medio = soma_rumos / marcador_rumos;
