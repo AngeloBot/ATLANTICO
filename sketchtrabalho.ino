@@ -16,11 +16,11 @@ int L = 2;
 int FL = 3;
  
  
-PWMServo servo; // Vari·vel Servo
+PWMServo servo; // Vari√°vel Servo
  
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);   // SCL na A5, SDA na A4
 
-float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //lista de latitude, longitude e desvio magnÈtico dos waypoints
+float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //lista de latitude, longitude e desvio magn√©tico dos waypoints
 
 
    float pos = 90;
@@ -30,7 +30,6 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //li
    float rumo_real;
    float rumo_medio;
    float delta_rumo;
-   float delta_rumo2;
    float erro_rumo;
    float erro_rumo2;
    bool em_bordo = false;
@@ -43,9 +42,9 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //li
    float contador_pane_contra = 0;
    float distancia_waypoint = 20;
    float distancia;
-   float latitude, longitude; //As variaveis podem ser float, para n„o precisar fazer nenhum c·lculo
-   int i; //Vari·vel para contagem
-   float precisao; //Vari·vel para melhorar a precisao do valor aferido
+   float latitude, longitude; //As variaveis podem ser float, para n√£o precisar fazer nenhum c√°lculo
+   int i; //Vari√°vel para contagem
+   float precisao; //Vari√°vel para melhorar a precisao do valor aferido
    int contador_lista = 0;
    float marcador_hall = 0;
    
@@ -65,14 +64,14 @@ void setup() {
    pinMode(FL,INPUT);
  
 
-   Serial.println("O GPS est· aguardando pelo sinal dos satelites...");
+   Serial.println("O GPS est√° aguardando pelo sinal dos satelites...");
    
    servo.attach(SERVO_PIN_A);  //Define a porta a ser ligada ao servo, a 9
-   servo.write(90); // Inicia motor posiÁ„o zero
+   servo.write(90); // Inicia motor posi√ß√£o zero
    Serial.println("servo iniciado em 90");
  
  
- // inicializa a b˙ssola e aguarda pelo sinal
+ // inicializa a b√∫ssola e aguarda pelo sinal
   if(!mag.begin()){
 
     while(1);
@@ -89,43 +88,46 @@ void loop() {
   
   bool recebido = false;
   static unsigned long delayPrint;
+ 
+  if (!em_bordo) {
   while (!recebido){
   while (serial1.available()) {
      char cIn = serial1.read();
-     recebido = (gps1.encode(cIn) || recebido);  //Verifica atÈ receber o primeiro sinal dos satelites
+     recebido = (gps1.encode(cIn) || recebido);  //Verifica at√© receber o primeiro sinal dos satelites
   }
 
- if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas apÛs receber o primeiro sinal. ApÛs o primeiro sinal, mostra a cada segundo.
+ if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas ap√≥s receber o primeiro sinal. Ap√≥s o primeiro sinal, mostra a cada segundo.
      delayPrint = millis();
   
   //Latitude e Longitude----------------------------------------------------------------------------------------------------------------
      Serial.println("----------------------------------------");
      unsigned long idadeInfo;
-     gps1.f_get_position(&latitude, &longitude, &idadeInfo);   //O mÈtodo f_get_position È mais indicado para retornar as coordenadas em vari·veis float, para n„o precisar fazer nenhum c·lculo 
+     gps1.f_get_position(&latitude, &longitude, &idadeInfo);   //O m√©todo f_get_position √© mais indicado para retornar as coordenadas em vari√°veis float, para n√£o precisar fazer nenhum c√°lculo 
   
      if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
         Serial.print("Latitude: ");
-        Serial.println(latitude, 6);  //Mostra a latitude com a precis„o de 6 dÌgitos decimais
+        Serial.println(latitude, 6);  //Mostra a latitude com a precis√£o de 6 d√≠gitos decimais
      }
 
      if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
         Serial.print("Longitude: ");
-        Serial.println(longitude, 6);  //Mostra a longitude com a precis„o de 6 dÌgitos decimais
+        Serial.println(longitude, 6);  //Mostra a longitude com a precis√£o de 6 d√≠gitos decimais
      }
      }
   }
  //Rumo Ideal---------------------------------------------------------------------------------------------------------------------------
 
-     //rumo_ideal (calculado a partir da posiÁao atual e do proximo waypoint) 
+     //rumo_ideal (calculado a partir da posi√ßao atual e do proximo waypoint) 
      rumo_ideal = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], (lat2_lon2_desvio [1+contador_lista]));        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
      Serial.println(float(rumo_ideal), 2);    
+  }
    
    //BUSSOLA//--------------------------------------------------------------------------------------------------------------------------
    
-    precisao = 0; //Zera a vari·vel para uma nova leitura
+    precisao = 0; //Zera a vari√°vel para uma nova leitura
 
-    for(i=0;i<500;i++) { //Faz a leitura 100 e armazenar a somatÛria
+    for(i=0;i<500;i++) { //Faz a leitura 100 e armazenar a somat√≥ria
 
      sensors_event_t event; 
      mag.getEvent(&event);
@@ -144,16 +146,15 @@ void loop() {
 
     rumo_real = heading * 180/M_PI;    //converte pra graus
 
-    precisao = precisao + rumo_real;    //vai somando na precis„o pra depois dividir por 100
+    precisao = precisao + rumo_real;    //vai somando na precis√£o pra depois dividir por 100
     delay(1);
   }
 
-   rumo_real = precisao / 100; //Pega a somatÛria e tira a mÈdia dos valores aferidos
+   rumo_real = precisao / 100; //Pega a somat√≥ria e tira a m√©dia dos valores aferidos
    Serial.print("Rumo Real (grau): ");
    Serial.println(rumo_real);
    
-     //soma_rumos += rumo_real;
-     //marcador_rumos ++;
+
 
   // HALL //----------------------------------------------------------------------------------------------------------------------------
   
@@ -166,17 +167,14 @@ void loop() {
   
      
      
-     //PILOTO AUTOM¡TICO//--------------------------------------------------------------------------------------------------------------
+     //PILOTO AUTOM√ÅTICO//--------------------------------------------------------------------------------------------------------------
      
-     //if (marcador_rumos >=2 && !em_bordo && marcador_hall >= 2){      //ver a velocidade dos dados de hall e rumo 
     
-    if (marcador_hall >=2 && !em_bordo){
+    if (marcador_hall >=4 && !em_bordo){
      Serial.println("iniciado piloto automatico"); 
      
-     //rumo_medio = soma_rumos / marcador_rumos;
-     rumo_medio = rumo_real;
      
-     delta_rumo = rumo_medio - rumo_ideal;
+     delta_rumo = rumo_real - rumo_ideal;
      
      
      
@@ -224,15 +222,17 @@ void loop() {
      
        //VENTO FAVORAVEL//--------------------------------------------------------------------------------------------------------------
        if (far_left == 0 && left == 0 && right == 0 && far_right == 0) {
+        
+          contador_pane_contra = 0;
      
           if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ){    //virar pra boreste
             if (!estava_contra) {
               pos = (90 + erro_rumo);            // talvez tenha que mudar o multiplicador
               Serial.println("virou a boreste no piloto automatico favoravel");
             }
-            else {     //orÁa um pouco, pq antes estava no contravento e o erro_rumo È grande
+            else {     //or√ßa um pouco, pq antes estava no contravento e o erro_rumo √© grande
               pos = 95;
-              Serial.println("orÁou para boreste no piloto automatico favoravel");
+              Serial.println("or√ßou para boreste no piloto automatico favoravel");
             }
           }
           if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180) ){      //virar pra bombordo
@@ -241,8 +241,8 @@ void loop() {
               Serial.println("virou a bombordo no piloto automatico favoravel");
             }
             else {
-               pos = 85;      //orÁa um pouco, pq antes estava no contravento e o erro_rumo È grande
-               Serial.println("orÁou a bombordo no piloto automatico favoravel");
+               pos = 85;      //or√ßa um pouco, pq antes estava no contravento e o erro_rumo √© grande
+               Serial.println("or√ßou a bombordo no piloto automatico favoravel");
             }   
          }
           estava_contra = false;
@@ -254,12 +254,14 @@ void loop() {
         
          if (((delta_rumo) > 5 && (delta_rumo) < 180) || ((delta_rumo) > -355 && (delta_rumo) < -180)) {      //virar pra bombordo
          pos = 85;
-         Serial.println("arribou pq o rumo ideal est· mais aberto");
+         Serial.println("arribou pq o rumo ideal est√° mais aberto");
+         contador_pane_contra = 0;
          }
          
          if (far_right == 1 && right == 1) {
          pos = 85;
          Serial.println("arribou a bombordo");
+         contador_pane_contra = 0;
          }
          
          if (far_right == 0 && right == 1) {
@@ -271,7 +273,8 @@ void loop() {
          }
 
          if (far_right == 1 && right == 0){
-         Serial.println("orÁando com vento por boreste");
+         Serial.println("or√ßando com vento por boreste");
+         contador_pane_contra = 0;
          }
          
     
@@ -284,12 +287,14 @@ void loop() {
 
          if (((delta_rumo) < -5 && (delta_rumo) > -180) || ((delta_rumo) < 355  && (delta_rumo) > 180)) {    //virar pra boreste
          pos = 95;
-         Serial.println("arribou pq o rumo ideal est· mais aberto");
+         Serial.println("arribou pq o rumo ideal est√° mais aberto");
+         contador_pane_contra = 0;
          }
       
          if (far_left == 1 && left == 1) {
          pos = 95;
          Serial.println("arribou a boreste");
+         contador_pane_contra = 0;
          }
          
          if (far_left == 0 && left == 1) {
@@ -301,14 +306,14 @@ void loop() {
          }
 
          if (far_left == 1 && left == 0) {
-         Serial.print("orÁando com vento por bombordo");
+         Serial.print("or√ßando com vento por bombordo");
+         contador_pane_contra = 0;
          }
      
       estava_contra = true;
      }
     
-         // soma_rumos = 0;
-         // marcador_rumos = 0;
+     
               
     right = 0;
     far_right = 0;
@@ -318,20 +323,17 @@ void loop() {
    }
      
      
-     if (left == 0 && right == 0) {       //zera os marcadores de pane se o vento n„o est· mais contra
-         contador_pane_contra = 0;
-         }
-         
+
      
      //BORDO//--------------------------------------------------------------------------------------------------------------------------
      
-    delta_rumo2 = rumo_real - rumo_ideal;        //aqui usa o rumo_real, pq o rumo muda r·pido durante o bordo
+
      
-    if (((delta_rumo2) < -10 && (delta_rumo2) > -180) || ((delta_rumo2) > 10 && (delta_rumo2) < 180)) {
+    if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
         erro_rumo2 = abs(delta_rumo);
        }
      
-    if (((delta_rumo2) < 350  && (delta_rumo2) > 180) || ((delta_rumo2) > -350 && (delta_rumo2) < -180)) {
+    if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
         erro_rumo2 = abs(delta_rumo - 360);
        }
      
@@ -364,7 +366,7 @@ void loop() {
         if (erro_rumo2 < 10) {     //talvez seja melhor usar aqui que o hall oposto ligue
            pos = 90;
            servo.write(pos);
-           Serial.println("tÈrmino de bordo");
+           Serial.println("t√©rmino de bordo");
            delay(3000);
            em_bordo = false;
            contador_pane_bordo = 0;
@@ -397,9 +399,9 @@ void loop() {
          
      if (!em_bordo) {
          servo.write(pos);
-         //Serial.print("pos = ");
-         //Serial.println(pos);
-         // Serial.println("leme acionado em piloto automatico");
+         Serial.print("pos = ");
+         Serial.println(pos);
+         Serial.println("leme acionado em piloto automatico");
          delay(1500);       //talvez tenha que aumentar esse delay pra dar tempo do barco responder
          pos = 90;
          servo.write(pos);
@@ -411,7 +413,7 @@ void loop() {
      
      //PROXIMO WAYPOINT-----------------------------------------------------------------------------------------------------------------
      
-     distancia = gps1.distance_between(latitude, longitude, lat2_lon2_desvio [3+contador_lista], lat2_lon2_desvio [4+contador_lista]);
+     distancia = gps1.distance_between(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);
      if (distancia < distancia_waypoint) {
      contador_lista += 3;
      
