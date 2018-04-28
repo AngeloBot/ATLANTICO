@@ -10,10 +10,11 @@
 // quando carregar o sketch desconectar pins seriais
 
 //portas dos sensores
-int FR = 0;
-int R = 1;
-int L = 2;
-int FL = 3;
+// 1: suply 5V; 2: ground; 3:output   frente escrita, esquerda pra dreita
+int FR = 2;
+int R = 4;
+int L = 8;
+int FL = 12;
  
  
 PWMServo servo; // Variável Servo
@@ -28,6 +29,7 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //li
    //float marcador_rumos = 0;
    float rumo_ideal;
    float rumo_real;
+   float rumo_real1;
    float rumo_medio;
    float delta_rumo;
    float erro_rumo;
@@ -46,7 +48,7 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -0.3726278, 0, 0, 0};   //li
    int i; //Variável para contagem
    float precisao; //Variável para melhorar a precisao do valor aferido
    int contador_lista = 0;
-   float marcador_hall = 0;
+   float marcador_hall_bussola = 0;
    
 SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
@@ -59,10 +61,13 @@ void setup() {
    Serial.begin(9600);
    
    pinMode(FR,INPUT);
+   digitaWrite(FR, HIGH);
    pinMode(R,INPUT);
+   digitaWrite(R, HIGH);
    pinMode(L,INPUT);
+   digitaWrite(L, HIGH);
    pinMode(FL,INPUT);
- 
+   digitaWrite(FL, HIGH);
 
    Serial.println("O GPS está aguardando pelo sinal dos satelites...");
    
@@ -118,22 +123,21 @@ void loop() {
  //Rumo Ideal---------------------------------------------------------------------------------------------------------------------------
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     rumo_ideal = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], (lat2_lon2_desvio [1+contador_lista]));        //lat2 e lon2 numa lista de waypoints//
+     float (rumo_ideal) = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
-     Serial.println(float(rumo_ideal), 2);    
+     Serial.println(rumo_ideal, 2);    
   }
    
    //BUSSOLA//--------------------------------------------------------------------------------------------------------------------------
    
     precisao = 0; //Zera a variável para uma nova leitura
 
-    for(i=0;i<500;i++) { //Faz a leitura 100 e armazenar a somatória
+    for(i=0;i<100;i++) { //Faz a leitura 100 e armazenar a somatória
 
      sensors_event_t event; 
      mag.getEvent(&event);
-     float heading = atan2(event.magnetic.y, event.magnetic.x);
+     float heading = atan2(event.magnetic.y, event.magnetic.x);  //rumo indicado no eixo ? da bússola
    
-     heading += lat2_lon2_desvio[2 + contador_lista];
   
     //Converte o valor aferido para angulo
     if(heading < 0) {
@@ -144,13 +148,14 @@ void loop() {
       heading -= 2*PI;
     }  
 
-    rumo_real = heading * 180/M_PI;    //converte pra graus
+    rumo_real1 = heading * 180/M_PI;    //converte pra graus
 
-    precisao = precisao + rumo_real;    //vai somando na precisão pra depois dividir por 100
+    precisao += rumo_real1;    //vai somando na precisão pra depois dividir por 100
     delay(1);
   }
-
-   rumo_real = precisao / 100; //Pega a somatória e tira a média dos valores aferidos
+   
+   rumo_real1 = precisao / 100; //Pega a somatória e tira a média dos valores aferidos
+   rumo_real1 += lat2_lon2_desvio[2 + contador_lista];
    Serial.print("Rumo Real (grau): ");
    Serial.println(rumo_real);
    
@@ -163,58 +168,58 @@ void loop() {
    left += digitalRead(L);
    far_left += digitalRead(FL);
    
-   marcador_hall += 1;
+   marcador_hall_bussola += 1;
   
      
      
      //PILOTO AUTOMÁTICO//--------------------------------------------------------------------------------------------------------------
      
     
-    if (marcador_hall >=4 && !em_bordo){
+    if (marcador_hall_bussola >=6 && !em_bordo){
      Serial.println("iniciado piloto automatico"); 
      
-     
+     rumo_real = (rumo_real1 / marcador_hall_bussola);
      delta_rumo = rumo_real - rumo_ideal;
      
+    
      
-     
-       if ((right / marcador_hall) >= 0.5) {
+       if ((right / marcador_hall_bussola) <= 0.5) {
        right = 1;
        Serial.println("right acionado");
        }
-       if ((right / marcador_hall) < 0.5) {
+       if ((right / marcador_hall_bussola) > 0.5) {
        right = 0;
        }
-        if ((far_right / marcador_hall) >= 0.5) {
+        if ((far_right / marcador_hall_bussola) <= 0.5) {
        far_right = 1;
        Serial.println("far_right acionado");
        }
-       if ((far_right / marcador_hall) < 0.5){
+       if ((far_right / marcador_hall_bussola) > 0.5){
        far_right = 0;
        } 
-       if ((left  / marcador_hall) >= 0.5) {
+       if ((left  / marcador_hall_bussola) <= 0.5) {
        left = 1;
        Serial.println("left acionado");
        }
-       if ((left / marcador_hall)  < 0.5) {
+       if ((left / marcador_hall_bussola)  > 0.5) {
        left = 0;
        } 
-       if ((far_left / marcador_hall)  >= 0.5) {
+       if ((far_left / marcador_hall_bussola)  <= 0.5) {
        far_left = 1;
        Serial.println("far_left acionado");
        }
-       if(( far_left / marcador_hall)  < 0.5){
+       if(( far_left / marcador_hall_bussola)  > 0.5){
        far_left = 0;
        }
      
      erro_rumo = 0;
      
-       if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
+       if (((delta_rumo) < -10 && (delta_rumo) >= -180) || ((delta_rumo) > 10 && (delta_rumo) <= 180)) {
         erro_rumo = abs(delta_rumo);
        }
      
        if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
-        erro_rumo = abs(delta_rumo - 360);
+        erro_rumo = abs(abs(delta_rumo) - 360);
        }
        
        Serial.print("erro_rumo = ");
@@ -319,7 +324,7 @@ void loop() {
     far_right = 0;
     left = 0;
     far_left = 0;
-    marcador_hall = 0;
+    marcador_hall_bussola = 0;
    }
      
      
@@ -329,12 +334,12 @@ void loop() {
      
 
      
-    if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) > 10 && (delta_rumo) < 180)) {
+    if (((delta_rumo) < -10 && (delta_rumo) >= -180) || ((delta_rumo) > 10 && (delta_rumo) <= 180)) {
         erro_rumo2 = abs(delta_rumo);
        }
      
     if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
-        erro_rumo2 = abs(delta_rumo - 360);
+        erro_rumo2 = abs(abs(delta_rumo) - 360);
        }
      
      //BORDO A BORESTE//----------------------------------------------------------------------------------------------------------------
@@ -384,6 +389,7 @@ void loop() {
          delay(10000);
          contador_pane_bordo = 0;
          contador_pane_contra = 0;
+         marcador_hall_bussola = 0;
      } 
      
      //MOVE SERVO//---------------------------------------------------------------------------------------------------------------------
@@ -405,7 +411,7 @@ void loop() {
          delay(1500);       //talvez tenha que aumentar esse delay pra dar tempo do barco responder
          pos = 90;
          servo.write(pos);
-         delay(1500);
+         delay(500);
          
          }              //talvez tenha que voltar um pouco o leme depois que mover
      
