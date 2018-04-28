@@ -123,11 +123,15 @@ void loop() {
  //Rumo Ideal---------------------------------------------------------------------------------------------------------------------------
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     float (rumo_ideal) = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);        //lat2 e lon2 numa lista de waypoints//
+     rumo_ideal = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
-     Serial.println(rumo_ideal, 2);    
+     Serial.println(rumo_ideal);
+    
   }
-   
+  
+   Serial.print("Rumo ideal (grau): ");
+     Serial.println(rumo_ideal);
+     
    //BUSSOLA//--------------------------------------------------------------------------------------------------------------------------
    
     precisao = 0; //Zera a variável para uma nova leitura
@@ -156,11 +160,11 @@ void loop() {
    
    rumo_real1 = precisao / 100; //Pega a somatória e tira a média dos valores aferidos
    rumo_real1 += lat2_lon2_desvio[2 + contador_lista];
-   Serial.print("Rumo Real (grau): ");
-   Serial.println(rumo_real);
+   
    
 
-
+Serial.print("Rumo ideal (grau): ");
+     Serial.println(rumo_ideal);
   // HALL //----------------------------------------------------------------------------------------------------------------------------
   
    right += digitalRead(R);
@@ -180,10 +184,16 @@ void loop() {
      Serial.println("iniciado piloto automatico"); 
      
      rumo_real = (rumo_real1 / marcador_hall_bussola);
+
+     Serial.print("Rumo Real (grau): ");
+     Serial.println(rumo_real);
+     Serial.print("Rumo ideal (grau): ");
+     Serial.println(rumo_ideal);
+   
      delta_rumo = rumo_real - rumo_ideal;
      
-     Serial.print("marcador_hall_bussola = ");
-     Serial.println(marcador_hall_bussola);
+    Serial.print("delta_rumo = ");
+    Serial.println(delta_rumo);
      
      if ((right / marcador_hall_bussola) <= 0.5) {
        right = 1;
@@ -217,15 +227,7 @@ void loop() {
        far_left = 0;
        
      }
-     
-     Serial.print("far right = ");
-     Serial.println(far_right);
-     Serial.print("right = ");
-     Serial.println(right);
-     Serial.print("left = ");
-     Serial.println(left);
-     Serial.print("far left = ");
-     Serial.println(far_left);
+
      
      erro_rumo = 0;
      
@@ -235,6 +237,9 @@ void loop() {
      
        if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
         erro_rumo = abs(abs(delta_rumo) - 360);
+       }
+       if ((delta_rumo <= 10 && delta_rumo >= -10) || (delta_rumo <= -350) || (delta_rumo >= 350)){
+         erro_rumo = 0;
        }
        
        Serial.print("erro_rumo = ");
@@ -334,12 +339,9 @@ void loop() {
      }
     
      
-              
-    right = 0;
-    far_right = 0;
-    left = 0;
-    far_left = 0;
-    marcador_hall_bussola = 0;
+    
+    
+    
    }
      
      
@@ -405,7 +407,7 @@ Serial.print("far right = ");
      
      //MODO PANE//----------------------------------------------------------------------------------------------------------------------
      
-     if ((contador_pane_bordo > 30) || (contador_pane_contra > 20)) {
+     if ((contador_pane_bordo > 10) || (contador_pane_contra > 5)) {
          pos = 90;
          em_bordo = false;
          estava_contra = false;
@@ -440,7 +442,13 @@ Serial.print("far right = ");
          
          }              //talvez tenha que voltar um pouco o leme depois que mover
      
-     
+     if (marcador_hall_bussola >=1 && !em_bordo){
+       right = 0;
+    far_right = 0;
+    left = 0;
+    far_left = 0;
+    marcador_hall_bussola = 0;
+     }
      
      //PROXIMO WAYPOINT-----------------------------------------------------------------------------------------------------------------
      
