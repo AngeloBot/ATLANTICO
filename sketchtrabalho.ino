@@ -61,13 +61,13 @@ void setup() {
    Serial.begin(9600);
    
    pinMode(FR,INPUT);
-   digitaWrite(FR, HIGH);
+   digitalWrite(FR, HIGH);
    pinMode(R,INPUT);
-   digitaWrite(R, HIGH);
+   digitalWrite(R, HIGH);
    pinMode(L,INPUT);
-   digitaWrite(L, HIGH);
+   digitalWrite(L, HIGH);
    pinMode(FL,INPUT);
-   digitaWrite(FL, HIGH);
+   digitalWrite(FL, HIGH);
 
    Serial.println("O GPS está aguardando pelo sinal dos satelites...");
    
