@@ -21,15 +21,20 @@ PWMServo servo; // Variável Servo
  
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);   // SCL na A5, SDA na A4
 
-float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};   //lista de latitude, longitude e desvio magnético dos waypoints em graus
+float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};   //lista de latitude, longitude e desvio magnético dos waypoints
 
-
+   float right1 = 0; 
+   float far_right1 = 0; 
+   float left1 = 0; 
+   float far_left1 = 0;
    float pos = 90;
    float rumo_ideal;
    float rumo_real;
    float rumo_real1;
    float delta_rumo;
+   float delta_rumo2;
    float erro_rumo;
+   float erro_rumo2;
    bool em_bordo = false;
    bool estava_contra = false;
    float far_left = 0;
@@ -38,7 +43,7 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.74304
    float far_right = 0;
    float contador_pane_bordo = 0;
    float contador_pane_contra = 0;
-   float distancia_waypoint = 20;    //em metros
+   float distancia_waypoint = 20;   //em metros
    float distancia;
    float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
    int i; //Variável para contagem
@@ -90,8 +95,7 @@ void loop() {
   bool recebido = false;
   static unsigned long delayPrint;
  
-  
-  if (!em_bordo);
+  if (!em_bordo) {
   while (!recebido){
   while (serial1.available()) {
      char cIn = serial1.read();
@@ -120,22 +124,20 @@ void loop() {
  //Rumo Ideal---------------------------------------------------------------------------------------------------------------------------
 
      //rumo_ideal (calculado a partir da posiçao atual e do proximo waypoint) 
-     rumo_ideal = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);        //lat2 e lon2 numa lista de waypoints//
+    (rumo_ideal) = gps1.course_to(latitude, longitude, lat2_lon2_desvio [contador_lista], lat2_lon2_desvio [1+contador_lista]);        //lat2 e lon2 numa lista de waypoints//
      Serial.print("Rumo Ideal (grau): ");
-     Serial.println(rumo_ideal);
-    
+     Serial.println(rumo_ideal);    
   }
-  
-     
+   
    //BUSSOLA//--------------------------------------------------------------------------------------------------------------------------
    
     precisao = 0; //Zera a variável para uma nova leitura
 
-    for(i=0;i<50;i++) { //Faz a leitura 100 e armazenar a somatória
+    for(i=0;i<20;i++) { //Faz a leitura 100 e armazenar a somatória
 
      sensors_event_t event; 
      mag.getEvent(&event);
-     float heading = atan2(event.magnetic.y, event.magnetic.x);  //rumo indicado no eixo ? da bússola
+     float heading = atan2(event.magnetic.y, event.magnetic.x);  //rumo indicado no eixo x da bússola
    
   
     //Converte o valor aferido para angulo
@@ -155,15 +157,26 @@ void loop() {
    
    rumo_real1 = precisao / 50; //Pega a somatória e tira a média dos valores aferidos
    rumo_real1 += lat2_lon2_desvio[2 + contador_lista];
-   
-   
+   Serial.print("Rumo Real (grau): ");
+   Serial.println(rumo_real1);
+
+
+   rumo_real += rumo_real1;
+
+
+
 
   // HALL //----------------------------------------------------------------------------------------------------------------------------
   
-   right += digitalRead(R);
-   far_right += digitalRead(FR);
-   left += digitalRead(L);
-   far_left += digitalRead(FL);
+   right1 += digitalRead(R);
+   far_right1 += digitalRead(FR);
+   left1 += digitalRead(L);
+   far_left1 += digitalRead(FL);
+
+     Serial.println(far_right1);
+     Serial.println(right1);
+     Serial.println(left1);
+     Serial.println(far_left1);
    
    marcador_hall_bussola += 1;
    
@@ -173,22 +186,18 @@ void loop() {
      //PILOTO AUTOMÁTICO//--------------------------------------------------------------------------------------------------------------
      
     
-    if (marcador_hall_bussola >=2 && !em_bordo){
+    if (marcador_hall_bussola >= 2 && !em_bordo){     //precisa mudar o marcador lá embaixo
      Serial.println("iniciado piloto automatico"); 
-     
-     rumo_real = (rumo_real1 / marcador_hall_bussola);
 
-     Serial.print("Rumo Real (grau): ");
-     Serial.println(rumo_real);
-     Serial.print("Rumo ideal (grau): ");
-     Serial.println(rumo_ideal);
-   
+     
+     rumo_real = (rumo_real / marcador_hall_bussola);
      delta_rumo = rumo_real - rumo_ideal;
      
-    Serial.print("delta_rumo = ");
-    Serial.println(delta_rumo);
+     Serial.print("delta_rumo = ");
+     Serial.println(delta_rumo);
+
      
-     if ((right / marcador_hall_bussola) <= 0.5) {
+     if ((right1 / marcador_hall_bussola) <= 0.5) {
        right = 1;
        
      }
@@ -196,7 +205,7 @@ void loop() {
        right = 0;
        
      }
-     if ((far_right / marcador_hall_bussola) <= 0.5) {
+     if ((far_right1 / marcador_hall_bussola) <= 0.5) {
        far_right = 1;
 
      }
@@ -204,7 +213,7 @@ void loop() {
        far_right = 0;
        
      } 
-     if ((left  / marcador_hall_bussola) <= 0.5) {
+     if ((left1  / marcador_hall_bussola) <= 0.5) {
        left = 1;
        
      }
@@ -212,7 +221,7 @@ void loop() {
        left = 0;
        
      } 
-     if ((far_left / marcador_hall_bussola)  <= 0.5) {
+     if ((far_left1 / marcador_hall_bussola)  <= 0.5) {
        far_left = 1;
        
      }
@@ -220,20 +229,22 @@ void loop() {
        far_left = 0;
        
      }
+     
 
      
      erro_rumo = 0;
      
-       if (((delta_rumo) < -10 && (delta_rumo) >= -180) || ((delta_rumo) > 10 && (delta_rumo) <= 180)) {
+       if (((delta_rumo) < 0 && (delta_rumo) >= -180) || ((delta_rumo) > 0 && (delta_rumo) <= 180)) {
         erro_rumo = abs(delta_rumo);
        }
      
-       if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
+       if (((delta_rumo) < 360  && (delta_rumo) > 180) || ((delta_rumo) > -360 && (delta_rumo) < -180)) {
         erro_rumo = abs(abs(delta_rumo) - 360);
        }
-       if ((delta_rumo <= 10 && delta_rumo >= -10) || (delta_rumo <= -350) || (delta_rumo >= 350)){   //erros desprezíveis
-         erro_rumo = 0;
-       }
+
+       if ((delta_rumo <= 10 && delta_rumo >= -10) || (delta_rumo <= -350) || (delta_rumo >= 350)){
+       erro_rumo = 0;
+      }
        
        Serial.print("erro_rumo = ");
        Serial.println(erro_rumo);
@@ -243,23 +254,23 @@ void loop() {
         
           contador_pane_contra = 0;
      
-          if (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ){    //virar pra boreste
+          if (((delta_rumo) < 0 && (delta_rumo) > -180) || ((delta_rumo) < 360  && (delta_rumo) > 180) ){    //virar pra boreste
             if (!estava_contra) {
-              pos = (90 + (0.5*erro_rumo));            // talvez tenha que mudar o multiplicador
+              pos = (90 + erro_rumo);            // talvez tenha que mudar o multiplicador
               Serial.println("virou a boreste no piloto automatico favoravel");
             }
             else {     //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
-              pos = 95;
+              pos = 100;
               Serial.println("orçou para boreste no piloto automatico favoravel");
             }
           }
-          if (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180) ){      //virar pra bombordo
+          if (((delta_rumo) > 0 && (delta_rumo) < 180) || ((delta_rumo) > -360 && (delta_rumo) < -180) ){      //virar pra bombordo
             if (!estava_contra) {
-              pos = (90 - (0.5*erro_rumo));
+              pos = (90 - erro_rumo);
               Serial.println("virou a bombordo no piloto automatico favoravel");
             }
             else {
-               pos = 85;      //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
+               pos = 80;      //orça um pouco, pq antes estava no contravento e o erro_rumo é grande
                Serial.println("orçou a bombordo no piloto automatico favoravel");
             }   
          }
@@ -270,20 +281,20 @@ void loop() {
       
       if (far_right == 1 || right == 1) {
         
-         if (((delta_rumo) > 5 && (delta_rumo) < 180) || ((delta_rumo) > -355 && (delta_rumo) < -180)) {      //virar pra bombordo
-         pos = 85;
+         if (((delta_rumo) > 0 && (delta_rumo) < 180) || ((delta_rumo) > -360 && (delta_rumo) < -180)) {      //virar pra bombordo
+         pos = 80;
          Serial.println("arribou pq o rumo ideal está mais aberto");
          contador_pane_contra = 0;
          }
          
          if (far_right == 1 && right == 1) {
-         pos = 85;
+         pos = 80;
          Serial.println("arribou a bombordo");
          contador_pane_contra = 0;
          }
          
          if (far_right == 0 && right == 1) {
-         pos = 70;
+         pos = 55;
          Serial.println("arribou incisivamente a bombordo");
          contador_pane_contra += 1;
          Serial.print("contador pane contra = ");
@@ -303,20 +314,20 @@ void loop() {
      
       if (far_left == 1 || left == 1) {
 
-         if (((delta_rumo) < -5 && (delta_rumo) > -180) || ((delta_rumo) < 355  && (delta_rumo) > 180)) {    //virar pra boreste
-         pos = 95;
+         if (((delta_rumo) < 0 && (delta_rumo) > -180) || ((delta_rumo) < 360  && (delta_rumo) > 180)) {    //virar pra boreste
+         pos = 100;
          Serial.println("arribou pq o rumo ideal está mais aberto");
          contador_pane_contra = 0;
          }
       
          if (far_left == 1 && left == 1) {
-         pos = 95;
+         pos = 100;
          Serial.println("arribou a boreste");
          contador_pane_contra = 0;
          }
          
          if (far_left == 0 && left == 1) {
-         pos = 110;
+         pos = 115;
          Serial.println("arribou incisivamente a boreste");
          contador_pane_contra += 1;         
          Serial.print("contador pane contra = ");
@@ -324,17 +335,14 @@ void loop() {
          }
 
          if (far_left == 1 && left == 0) {
-         Serial.print("orçando com vento por bombordo");
+         Serial.println("orçando com vento por bombordo");
          contador_pane_contra = 0;
          }
      
       estava_contra = true;
      }
     
-     
-    
-    
-    
+   
    }
      
      
@@ -342,47 +350,41 @@ void loop() {
      
      //BORDO//--------------------------------------------------------------------------------------------------------------------------
      
-     Serial.print("far right = ");
+
      Serial.println(far_right);
-     Serial.print("right = ");
      Serial.println(right);
-     Serial.print("left = ");
      Serial.println(left);
-     Serial.print("far left = ");
      Serial.println(far_left);
 
-   
-     delta_rumo = rumo_real1 - rumo_ideal;
+    delta_rumo2 = rumo_real1 - rumo_ideal;   //não passa pela média
      
-
-     
-    if (((delta_rumo) < -10 && (delta_rumo) >= -180) || ((delta_rumo) > 10 && (delta_rumo) <= 180)) {   //erro_rumo aqui é instantâneo, independente da média
-        erro_rumo = abs(delta_rumo);
+    if (((delta_rumo2) < 0 && (delta_rumo2) >= -180) || ((delta_rumo2) > 0 && (delta_rumo2) <= 180)) {
+        erro_rumo2 = abs(delta_rumo2);
        }
      
-    if (((delta_rumo) < 350  && (delta_rumo) > 180) || ((delta_rumo) > -350 && (delta_rumo) < -180)) {
-        erro_rumo = abs(abs(delta_rumo) - 360);
+    if (((delta_rumo2) < 360  && (delta_rumo2) > 180) || ((delta_rumo2) > -360 && (delta_rumo2) < -180)) {
+        erro_rumo2 = abs(abs(delta_rumo2) - 360);
        }
        
-    Serial.print("erro_rumo = ");
-    Serial.println(erro_rumo);
+    Serial.print("erro_rumo2 = ");
+    Serial.println(erro_rumo2);
      
      //BORDO A BORESTE//----------------------------------------------------------------------------------------------------------------
-     if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ){
-           pos = 180;
+     if (!em_bordo && far_right == 1 && right == 0 && (erro_rumo2) > 90 && (((delta_rumo) < -10 && (delta_rumo) > -180) || ((delta_rumo) < 350  && (delta_rumo) > 180) ) ){
+           pos = 179;
            servo.write(pos);
            Serial.println("comando de bordo para boreste");
-           delay(3000);
+           delay(1000);
            em_bordo = true;
          }
     
      //BORDO A BOMBORDO//---------------------------------------------------------------------------------------------------------------
      
-     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))){
-            pos = 0;
+     if (!em_bordo && far_left == 1 && left == 0 && erro_rumo2 > 90 && (((delta_rumo) > 10 && (delta_rumo) < 180) || ((delta_rumo) > -350 && (delta_rumo) < -180))){
+            pos = 1;
             servo.write(pos);
             Serial.println("comando de bordo para bombordo");
-            delay(3000);
+            delay(1000);
             em_bordo = true;
      }
      
@@ -393,11 +395,11 @@ void loop() {
         delay(250);
         Serial.print("contador pane bordo = ");
         Serial.println(contador_pane_bordo);
-        if (erro_rumo < 10) {     //talvez seja melhor usar aqui que o hall oposto ligue
+        if (erro_rumo2 < 23) {     //talvez seja melhor usar aqui que o hall oposto ligue
            pos = 90;
            servo.write(pos);
            Serial.println("término de bordo");
-           delay(1000);
+           delay(300);
            em_bordo = false;
            contador_pane_bordo = 0;
            }
@@ -405,7 +407,7 @@ void loop() {
      
      //MODO PANE//----------------------------------------------------------------------------------------------------------------------
      
-     if ((contador_pane_bordo > 10) || (contador_pane_contra > 5)) {
+     if ((contador_pane_bordo > 20) || (contador_pane_contra > 20)) {
          pos = 90;
          em_bordo = false;
          estava_contra = false;
@@ -414,7 +416,15 @@ void loop() {
          delay(10000);
          contador_pane_bordo = 0;
          contador_pane_contra = 0;
-         marcador_hall_bussola = 0;
+         marcador_hall_bussola = 0;right = 0;
+         far_right = 0;
+         left = 0;
+         far_left = 0;
+         right1 = 0;
+         far_right1 = 0;
+         left1 = 0;
+         far_left1 = 0;
+         
      } 
      
      //MOVE SERVO//---------------------------------------------------------------------------------------------------------------------
@@ -428,25 +438,30 @@ void loop() {
          Serial.println("leme corrigido para 0");
          }
          
-     if (!em_bordo) {
+     if (!em_bordo && pos != 90) {
          servo.write(pos);
          Serial.print("pos = ");
          Serial.println(pos);
          Serial.println("leme acionado em piloto automatico");
-         delay(1000);       //talvez tenha que aumentar esse delay pra dar tempo do barco responder
+         delay(1500);       //talvez tenha que aumentar esse delay pra dar tempo do barco responder
          pos = 90;
          servo.write(pos);
-         delay(300);
+         delay(10);
          
          }              //talvez tenha que voltar um pouco o leme depois que mover
      
-     if ((marcador_hall_bussola >= 2) && (!em_bordo)){
-       right = 0;
-       far_right = 0;
-       left = 0;
-       far_left = 0;
-       marcador_hall_bussola = 0;
-     }
+     if (marcador_hall_bussola >= 2 && !em_bordo){
+     right = 0;
+     far_right = 0;
+     left = 0;
+     far_left = 0;
+     right1 = 0;
+     far_right1 = 0;
+     left1 = 0;
+     far_left1 = 0;
+     rumo_real = 0;
+     marcador_hall_bussola = 0;
+      }
      
      //PROXIMO WAYPOINT-----------------------------------------------------------------------------------------------------------------
      
@@ -454,7 +469,6 @@ void loop() {
      if (distancia < distancia_waypoint) {
      contador_lista += 3;
      Serial.println("NOVO WAYPOINT");
-     
      }
     
 
