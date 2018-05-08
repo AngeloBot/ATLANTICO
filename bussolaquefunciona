@@ -1,0 +1,119 @@
+#include <PWMServo.h>
+#include <SoftwareSerial.h>
+#include <TinyGPS.h>
+#include <Adafruit_HMC5883_U.h>
+#include <Wire.h> 
+
+// servo - marrom gnd, vermelho vcc, laranja 9
+// gps - rx na 7, tx na 6, desconectar antes de compilar
+// bussola - scl na A5, sda na A4
+// quando carregar o sketch desconectar pins seriais
+
+//portas dos sensores
+// 1: suply 5V; 2: ground; 3:output   frente escrita, esquerda pra dreita
+int FR = 2;
+int R = 4;
+int L = 8;
+int FL = 12;
+ 
+ 
+PWMServo servo; // Variável Servo
+ 
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);   // SCL na A5, SDA na A4
+
+float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};   //lista de latitude, longitude e desvio magnético dos waypoints
+
+   float right1 = 0; 
+   float far_right1 = 0; 
+   float left1 = 0; 
+   float far_left1 = 0;
+   float pos = 90;
+   float rumo_ideal;
+   float rumo_real;
+   float rumo_real1;
+   float delta_rumo;
+   float delta_rumo2;
+   float erro_rumo;
+   float erro_rumo2;
+   bool em_bordo = false;
+   bool estava_contra = false;
+   float far_left = 0;
+   float left = 0;
+   float right = 0;
+   float far_right = 0;
+   float contador_pane_bordo = 0;
+   float contador_pane_contra = 0;
+   float distancia_waypoint = 20;   //em metros
+   float distancia;
+   float latitude, longitude; //As variaveis podem ser float, para não precisar fazer nenhum cálculo
+   int i; //Variável para contagem
+   float precisao; //Variável para melhorar a precisao do valor aferido
+   int contador_lista = 0;
+   float marcador_hall_bussola = 0;
+   
+SoftwareSerial serial1(6, 7); // RX, TX
+TinyGPS gps1;
+
+
+
+void setup() {
+
+   serial1.begin(9600);
+   Serial.begin(9600);
+   
+   pinMode(FR,INPUT);
+   digitalWrite(FR, HIGH);
+   pinMode(R,INPUT);
+   digitalWrite(R, HIGH);
+   pinMode(L,INPUT);
+   digitalWrite(L, HIGH);
+   pinMode(FL,INPUT);
+   digitalWrite(FL, HIGH);
+ 
+ // inicializa a bússola e aguarda pelo sinal
+  if(!mag.begin()){
+
+    while(1);
+  }
+
+}
+void loop(){
+//BUSSOLA//--------------------------------------------------------------------------------------------------------------------------
+   
+    precisao = 0; //Zera a variável para uma nova leitura
+
+    for(i=0;i<20;i++) { //Faz a leitura 100 e armazenar a somatória
+
+     sensors_event_t event; 
+     mag.getEvent(&event);
+     float heading = atan2(event.magnetic.y, event.magnetic.x);  //rumo indicado no eixo x da bússola
+   
+  
+    //Converte o valor aferido para angulo
+    if(heading < 0) {
+      heading += 2*PI;
+    } 
+
+    if(heading > 2*PI) {
+      heading -= 2*PI;
+    }  
+
+    rumo_real1 = heading * 180/M_PI; //converte pra graus
+    Serial.println(rumo_real1);
+    precisao += rumo_real1;    //vai somando na precisão pra depois dividir por 20
+    delay(1);
+  }
+   
+   rumo_real1 = precisao / 20; //Pega a somatória e tira a média dos valores aferidos
+   if (rumo_real1 < lat2_lon2_desvio[2 + contador_lista]){
+     rumo_real1 += lat2_lon2_desvio[2 + contador_lista];
+     rumo_real1 += 360;
+     
+   }
+   else{
+    rumo_real1 += lat2_lon2_desvio[2 + contador_lista];
+   }
+   Serial.print("Rumo Real (grau): ");
+   Serial.println(rumo_real1);
+   delay(100);
+}
