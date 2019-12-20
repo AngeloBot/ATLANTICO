@@ -9,10 +9,13 @@ HMC5883L compass;
 SoftwareSerial serial1(6, 7); // RX, TX
 TinyGPS gps1;
 
+
+//variáveis HALL
 int statusLEFT = 0;
 int statusRIGHT = 0;
 int statusFLEFT = 0;
 int statusFRIGHT = 0;
+int maxHallSignal = 10;
 
 //pin para input proveniente sensores
 int pinLEFT = A1;
@@ -26,143 +29,11 @@ int LpinRIGHT = 4;
 int LpinFLEFT = 8;
 int LpinFRIGHT = 2;
 
-void setup() {
+//variáveis para o GPS
+int rumo_ideal = 0;
 
-  Serial.println("Esperando por Dados do Modulo...");
-  serial1.begin(9600);
-  Serial.begin(9600);
-  
-  //RIGHT
-  pinMode(pinRIGHT, INPUT);
-  pinMode(LpinRIGHT, OUTPUT);
-  //LEFT
-  pinMode(pinLEFT, INPUT);
-  pinMode(LpinLEFT, OUTPUT);
-  //FLEFT
-  pinMode(pinFLEFT, INPUT);
-  pinMode(LpinFLEFT, OUTPUT);
-  //FRIGHT
-  pinMode(pinFRIGHT, INPUT);
-  pinMode(LpinFRIGHT, OUTPUT);
-
-  // Initialize Initialize HMC5883L
-  Serial.println("Initialize HMC5883L");
-  while (!compass.begin())
-  {
-    Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-    delay(500);
-  }
-
-  // Set measurement range
-  compass.setRange(HMC5883L_RANGE_1_3GA);
-
-  // Set measurement mode
-  compass.setMeasurementMode(HMC5883L_CONTINOUS);
-
-  // Set data rate
-  compass.setDataRate(HMC5883L_DATARATE_30HZ);
-
-  // Set number of samples averaged
-  compass.setSamples(HMC5883L_SAMPLES_8);
-
-  // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(108, 39);
-  
-}
-
-void loop() {
-
-//#############################################################Hall
-  statusRIGHT = analogRead(pinRIGHT);
-  statusLEFT = analogRead(pinLEFT);
-  statusFRIGHT = analogRead(pinFRIGHT);
-  statusFLEFT = analogRead(pinFLEFT);
-  
-//RIGHT
-  if ( statusRIGHT < 10){
-    
-    digitalWrite(LpinRIGHT, HIGH);
-    Serial.print("RIGHT");
-    }
-  else{
-
-    digitalWrite(LpinRIGHT, LOW);
-    }
-  
-    
-//LEFT  
-  if ( statusLEFT < 10){
-    
-    digitalWrite(LpinLEFT, HIGH);
-    Serial.print("LEFT");
-    }
-  else{
-
-    digitalWrite(LpinLEFT, LOW);
-    }
-  
-  
-//FRIGHT
-  if ( statusFRIGHT < 10){
-    
-    digitalWrite(LpinFRIGHT, HIGH);
-    Serial.print("FRIGHT");
-    }
-  else{
-
-    digitalWrite(LpinFRIGHT, LOW);
-    }
-  
-
-  //FLEFT
-  if ( statusFLEFT < 10){
-    
-    digitalWrite(LpinFLEFT, HIGH);
-    Serial.print("FLEFT");
-    }
-  else{
-
-    digitalWrite(LpinFLEFT, LOW);
-    }
-  
-
-//#############################################################Bússola
-
-  Vector norm = compass.readNormalize();
-
-  // Calculate heading
-  float heading = atan2(norm.YAxis, norm.XAxis);
-
-  // Set declination angle on your location and fix heading
-  // You can find your declination on: http://magnetic-declination.com/
-  // (+) Positive or (-) for negative
-  // For Bytom / Poland declination angle is 4'26E (positive)
-  // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-  float declinationAngle = (4.0 + (26.0 / 60.0)) / (180 / M_PI);
-  heading += declinationAngle;
-
-  // Correct for heading < 0deg and heading > 360deg
-  if (heading < 0)
-  {
-    heading += 2 * PI;
-  }
-
-  if (heading > 2 * PI)
-  {
-    heading -= 2 * PI;
-  }
-
-  // Convert to degrees
-  float headingDegrees = heading * 180/M_PI; 
-
-  // Output
-  Serial.print(" Heading = ");
-  Serial.print(heading);
-  Serial.print(" Degress = ");
-  Serial.print(headingDegrees);
-  Serial.println();
-
-//#############################################################GPS
+void lerGPS() {
+  //receber dados de posição do GPS e definir o rumo ideal
   bool recebido = false;
   static unsigned long delayPrint;
 
@@ -207,13 +78,13 @@ void loop() {
 
 
 
-     //sentito (em centesima de graus)
+     //sentito (em graus)
      unsigned long sentido;
      sentido = gps1.course();
 
      Serial.print("Sentido (grau): ");
-     Serial.println(float(sentido) / 100, 2);
-
+     Serial.println(float(sentido), 2);
+     
 
      //satelites e precisão
      unsigned short satelites;
@@ -230,12 +101,136 @@ void loop() {
         Serial.print("Precisao (centesimos de segundo): ");
         Serial.println(precisao);
      }
-
-
      //float distancia_entre;
      //distancia_entre = gps1.distance_between(lat1, long1, lat2, long2);
 
-     //float sentido_para;
-     //sentido_para = gps1.course_to(lat1, long1, lat2, long2);
+     float rumo_ideal;
+     rumo_ideal = gps1.course_to(lat1, long1, lat2, long2);
   }
+}
+
+void lerHALL(){
+  statusRIGHT = analogRead(pinRIGHT);
+  statusLEFT = analogRead(pinLEFT);
+  statusFRIGHT = analogRead(pinFRIGHT);
+  statusFLEFT = analogRead(pinFLEFT);
+
+
+
+  if ( statusFRIGHT < maxHallSignal){
+
+    }
+  else if ( statusFLEFT < maxHallSignal) {
+
+    }
+
+  else if ( statusFLEFT < maxHallSignal) {
+
+    }
+
+  else if ( statusFLEFT < maxHallSignal) {
+
+    }
+  
+  }
+
+void setup() {
+
+  Serial.println("Esperando por Dados do Modulo...");
+  serial1.begin(9600);
+  Serial.begin(9600);
+  
+  //RIGHT
+  pinMode(pinRIGHT, INPUT);
+  pinMode(LpinRIGHT, OUTPUT);
+  //LEFT
+  pinMode(pinLEFT, INPUT);
+  pinMode(LpinLEFT, OUTPUT);
+  //FLEFT
+  pinMode(pinFLEFT, INPUT);
+  pinMode(LpinFLEFT, OUTPUT);
+  //FRIGHT
+  pinMode(pinFRIGHT, INPUT);
+  pinMode(LpinFRIGHT, OUTPUT);
+
+  // Initialize Initialize HMC5883L
+  Serial.println("Initialize HMC5883L");
+  while (!compass.begin())
+  {
+    Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+    delay(500);
+  }
+
+  // Set measurement range
+  compass.setRange(HMC5883L_RANGE_1_3GA);
+
+  // Set measurement mode
+  compass.setMeasurementMode(HMC5883L_CONTINOUS);
+
+  // Set data rate
+  compass.setDataRate(HMC5883L_DATARATE_30HZ);
+
+  // Set number of samples averaged
+  compass.setSamples(HMC5883L_SAMPLES_8);
+
+  // Set calibration offset. See HMC5883L_calibration.ino
+  compass.setOffset(95, -3);
+  
+}
+
+void rumo_real(){
+
+    Vector norm = compass.readNormalize();
+
+  // Calculate heading
+  float heading = atan2(norm.YAxis, norm.XAxis);
+
+  // Set declination angle on your location and fix heading
+  // You can find your declination on: http://magnetic-declination.com/
+  // (+) Positive or (-) for negative
+  // For Bytom / Poland declination angle is 4'26E (positive)
+  // Formula: (deg + (min / 60.0)) / (180 / M_PI);
+  float declinationAngle = (4.0 + (26.0 / 60.0)) / (180 / M_PI);
+  heading += declinationAngle;
+
+  // Correct for heading < 0deg and heading > 360deg
+  if (heading < 0)
+  {
+    heading += 2 * PI;
+  }
+
+  if (heading > 2 * PI)
+  {
+    heading -= 2 * PI;
+  }
+
+  // Convert to degrees
+  float headingDegrees = heading * 180/M_PI; 
+
+  
+  // Output
+  Serial.print(" Heading = ");
+  Serial.print(heading);
+  Serial.print(" Degress = ");
+  Serial.print(headingDegrees);
+  Serial.println();
+  
+  }
+
+
+void loop() {
+
+//#############################################################Hall
+
+
+//#############################################################Bússola
+
+
+
+//#############################################################GPS
+  
+
+
+     
+  
 }
