@@ -152,8 +152,8 @@ void lerHALL(){
   
   }
 
-bool check_rumo(){
 
+float acquire_buss(){
     Vector norm = compass.readNormalize();
 
   // Calculate heading
@@ -181,6 +181,11 @@ bool check_rumo(){
   // Convert to degrees
   float headingDegrees = heading * 180/M_PI; 
 
+  //adicionar parte que guarda na lista a informação q é lidaS
+
+}
+
+bool check_rumo(){
   
   // Output
   //Serial.print(" Degress = ");
