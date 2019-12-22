@@ -297,10 +297,9 @@ switch (current_state){
   //manter servo parado na posição
 
   bool stable = true;
+  //pode inserir um timer pra não deixar o código preso nesse loop
   while (stable) {
 
-    //pode inserir um timer pra não deixar o código preso nesse loop
-    
     switch (wind){
     
     case 0: //vento de bombordo
@@ -342,20 +341,37 @@ switch (current_state){
 
   bool stable = false;
 
+  //talvez colocar algum timer pra tirar o código desse loop.
   while (!stable){
     
 
     switch (wind){
     
-    case 0: //ve
-    if (status_Hall != ){
+    case 0: //vento de bombordo
+    if (status_Hall != {1,1,0,0}){
     //mover servo para lado oposto
 
       }
+    
+    else{
+      stable=true;
     }
+    
+    }
+    break;
 
-  break;
+    case 1: //vento de borest
+    if (status_Hall != {0,0,1,1}){
+    //mover servo para lado oposto
 
+      }
+    
+    else{
+      stable=true;
+    }
+    break;
+
+    }
   
   case 3: //orçar
   previous_state=3;
