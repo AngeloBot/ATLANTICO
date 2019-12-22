@@ -1,3 +1,4 @@
+#include <StandardCplusplus.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include <HMC5883L.h>
@@ -8,6 +9,11 @@ HMC5883L compass;
 
 SoftwareSerial serial1(6, 7); // RX, TX conectar invertido com as portas do GPS
 TinyGPS gps1;
+
+//variáveis de estado da máquina
+int current_state = 1;
+int previous_state = 0;
+int wind; //0 para bombordo, 1 para boreste
 
 //parâmetros de erro
 
@@ -21,17 +27,17 @@ float rumo_real;
 
 //lista de waypoints com respectivos desvios magnéticos
 float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};
+int waypoint_count = 0;
 
-
-//variáveis HALL
+//variáveis HALL=============================
 int statusLEFT = 0;
 int statusRIGHT = 0;
 int statusFLEFT = 0;
 int statusFRIGHT = 0;
+int status_Hall[4]={0,0,0,0};
+
+//Nível lógico máximo para representar ativação doo hall
 int maxHallSignal = 10;
-
-int array_Hall[] = {0,0,0,0};
-
 
 //pin para input proveniente sensores
 int pinLEFT = A1;
@@ -51,7 +57,7 @@ float latitude, longitude;
 float lat2, long2;
 unsigned long sentido;
 
-void lerGPS() {
+void acquire_GPS() {
   //receber dados de posição do GPS e definir o rumo ideal
   bool recebido = false;
   static unsigned long delayPrint;
@@ -127,70 +133,64 @@ void lerGPS() {
   }
 }
 
-void lerHALL(){
+void acquire_Hall(){
+
   statusRIGHT = analogRead(pinRIGHT);
   statusLEFT = analogRead(pinLEFT);
   statusFRIGHT = analogRead(pinFRIGHT);
   statusFLEFT = analogRead(pinFLEFT);
 
-
+  status_Hall[4]={0,0,0,0};
   if ( statusFRIGHT < maxHallSignal){
-
-    array_Hall[3]=1;
+    status_Hall[3]=1;
     }
-  else if ( statusFLEFT < maxHallSignal) {
-    array_Hall[0]=1;
+  if ( statusRIGHT < maxHallSignal){
+    status_Hall[2]=1;
     }
-
-  else if ( statusLEFT < maxHallSignal) {
-    array_Hall[1]=1;
+  if ( statusFLEFT < maxHallSignal){
+    status_Hall[0]=1;
     }
-
-  else if ( statusRIGHT < maxHallSignal) {
-    array_Hall[2]=1;
-    }
-  
+  if ( statusLEFT < maxHallSignal){
+    status_Hall[1]=1; 
+    }}
   }
 
 
 float acquire_buss(){
-    Vector norm = compass.readNormalize();
+  //lê a bússola e guarda o valor
+
+  Vector norm = compass.readNormalize();
 
   // Calculate heading
-  float heading = atan2(norm.YAxis, norm.XAxis);
+  rumo_real = atan2(norm.YAxis, norm.XAxis);
 
   // Set declination angle on your location and fix heading
   // You can find your declination on: http://magnetic-declination.com/
   // (+) Positive or (-) for negative
   // For Bytom / Poland declination angle is 4'26E (positive)
+  // For Liberdade, São Paulo / Brazil declination angle is 21'34W(negative)
   // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-  float declinationAngle = (4.0 + (26.0 / 60.0)) / (180 / M_PI);
-  heading += declinationAngle;
+  float declinationAngle = (-21.0 - (34.0 / 60.0)) / (180 / M_PI);
+  rumo_real += declinationAngle;
 
   // Correct for heading < 0deg and heading > 360deg
-  if (heading < 0)
+  if (rumo_real < 0)
   {
-    heading += 2 * PI;
+    rumo_real += 2 * PI;
   }
 
-  if (heading > 2 * PI)
+  if (rumo_real > 2 * PI)
   {
-    heading -= 2 * PI;
+    rumo_real -= 2 * PI;
   }
 
-  // Convert to degrees
-  float headingDegrees = heading * 180/M_PI; 
-
-  //adicionar parte que guarda na lista a informação q é lidaS
+  // Converter para graus e guardar na variável apropriada
+  rumo_real = rumo_real * 180/M_PI; 
 
 }
 
-bool check_rumo(){
-  
-  // Output
-  //Serial.print(" Degress = ");
-  //Serial.print(headingDegrees);
-  //Serial.println();
+int check_rumo(){
+  //de acordo com a última leitura da bússola, verifica o desvio do rumo real
 
   float delta_rumo = rumo_real - rumo_ideal;
   
@@ -207,26 +207,26 @@ bool check_rumo(){
       }
 
   if (abs(erro_rumo) > 80 && abs(erro_rumo) < 90 ){
-
-    return 0; //dar bordo
+    current_state=5; //ir para cambar
+    return false;
     }
 
   else if (abs(erro_rumo) > lamda_rumo){
-
-    return 1; //precisa ajeitar rumo
+    current_state=4; //ir para ajeitar_rumo
+    return false;
     }
   
   else{
-    return 2; //não é necessário ajustar rumo
+    return true;
     }
   }
 
 void setup() {
 
 
-  int current_state = 1;
-  int previous_state = 0;
-  int waypoint_count = 0;
+  current_state = 1;
+  previous_state = 0;
+  waypoint_count = 0;
 
   lat2=lat2_lon2_desvio[0];
   lon2=lat2_lon2_desvio[1];
@@ -278,14 +278,13 @@ void loop() {
 
 switch (current_state){
   
-  case 0: //troca_waypoint_BE
+  case 0: //troca_waypoint
 
   
   waypoint_count = waypoint_count + 1;
-
-  
-
-  delay(1000);
+  lat2=lat2_lon2_desvio[waypoint_count*3];
+  lon2=lat2_lon2_desvio[waypoint_count*3+1];
+  desvio2=lat2_lon2_desvio[waypoint_count*3+2];
 
   current_state=1; //ir para manter_rumo_BE
   previous_state=0;
@@ -293,61 +292,83 @@ switch (current_state){
   break;
 
   
-  case 1: //manter_rumo_BE
-
-  //colocar servo no centro
+  case 1: //manter_rumo
+  previous_state=1;
+  //manter servo parado na posição
 
   bool stable = true;
-  while stable {
+  while (stable) {
 
     //pode inserir um timer pra não deixar o código preso nesse loop
-
-    int hall_state = lerHall();
-
-    if ( hall_state = {0,0,1,0}){
-      current_state=2; //ir para arribar_BE
-      previous_state=1;
+    
+    switch (wind){
+    
+    case 0: //vento de bombordo
+    if ( status_Hall == {0,1,0,0}){
+      current_state=2; //ir para arribar
+      stable = false;
       
       }
 
-    else if ( hall_state = {0,0,0,1}){
-      current_state=2; //ir para orçar_BE
-      previous_state=1;
+    else if ( status_Hall == {1,0,0,0}){
+      current_state=2; //ir para orçar
+      stable = false;
+      }
+    break;
+
+    case 1: //vento de boreste
+    if ( status_Hall == {0,0,1,0}){
+      current_state=2; //ir para arribar
+      stable = false;
+      
       }
 
-    int check_rumo=check_rumo();
-    
-    else if (check_rumo==1){
-      current_state=4; //ir para ajeitar_rumo_BE
-      previous_state=1;
+    else if ( status_Hall == {0,0,0,1}){
+      current_state=2; //ir para orçar
+      stable = false;
       }
+    break;
+  }
+    stable=check_rumo();
 
-    else if (check_rumo==0){
-      current_state=5; //ir para cambar_BE
-      previous_state=1;
-      }
-    
+    }
     }
   
   break;
 
   
-  case 2: //arribar_BE
+  case 2: //arribar
+  previous_state=2;
+
+  bool stable = false;
+
+  while (!stable){
+    
+
+    switch (wind){
+    
+    case 0: //ve
+    if (status_Hall != ){
+    //mover servo para lado oposto
+
+      }
+    }
+
   break;
 
   
-  case 3: //orçar_BE
+  case 3: //orçar
+  previous_state=3;
   break;
 
   
-  case 4: //ajeitar_rumo_BE
+  case 4: //ajeitar_rumo
+  previous_state=4;
   break;
 
   
-  case 5: //cambar_BE
-  break;
-
-  case 6: //
+  case 5: //cambar
+  previous_state=5;
   break;
   
   }
