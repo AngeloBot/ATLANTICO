@@ -61,7 +61,7 @@ unsigned long sentido;
 //variáveis dos Interrupts
 
 const uint8_t t_load = 0;
-const uint8_t t0_cicles = 195; //oara prescale=1024 com amostragem ~80Hz
+const uint8_t t0_cicles = 195;
 
 
 void acquire_GPS() {
@@ -343,6 +343,7 @@ switch (current_state){
 
   
   case 1: //manter_rumo
+  Serial.println("manter_rumo");
   //manter servo parado na posição
   stable = true;
   //pode inserir um timer pra não deixar o código preso nesse loop
@@ -385,6 +386,7 @@ switch (current_state){
 
   
   case 2: //arribar
+  Serial.println("arribar");
   stable = false;
 
   //talvez colocar algum timer pra tirar o código desse loop.
@@ -396,6 +398,7 @@ switch (current_state){
     case 0: //vento de bombordo
     if (status_Hall != {1,1,0,0}){
     //mover leme para bombordo
+      Serial.println("movendo leme para bombordo");
       }
     
     else{
@@ -408,6 +411,7 @@ switch (current_state){
     case 1: //vento de boreste
     if (status_Hall != {0,0,1,1}){
     //mover leme para boreste
+    Serial.println("movendo leme para boreste");
       }
     
     else{
@@ -421,6 +425,7 @@ switch (current_state){
   
   case 3: //orçar
   stable = false;
+  Serial.println("orçar");
   //talvez colocar algum timer pra tirar o código desse loop.
   while (!stable){
     
@@ -430,7 +435,7 @@ switch (current_state){
     case 0: //vento de bombordo
     if (status_Hall != {1,1,0,0}){
     //mover leme para boreste
-    
+    Serial.println("mover leme para boreste");
       }
     
     else{
@@ -443,7 +448,7 @@ switch (current_state){
     case 1: //vento de boreste
     if (status_Hall != {0,0,1,1}){
     //mover leme para bombordo
-    
+    Serial.println("mover leme para bombordo");
       }
     
     else{
@@ -458,13 +463,14 @@ switch (current_state){
 
   
   case 4: //ajeitar_rumo
-  
+  Serial.println("ajeitar_rumo");
 
   previous_state=4;
   break;
 
   
   case 5: //cambar
+  Serial.println("cambar");
 
   bool stable = false;
 
@@ -490,5 +496,6 @@ switch (current_state){
 ISR(TIMER0_COMPA_vct){
   acquire_Hall();
   acquire_buss();
+  Serial.println("Interrupt");
 
 }
