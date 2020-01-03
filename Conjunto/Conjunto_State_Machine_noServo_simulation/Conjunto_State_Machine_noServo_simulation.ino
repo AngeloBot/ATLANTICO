@@ -1,4 +1,3 @@
-#include <StandardCplusplus.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include <HMC5883L.h>
