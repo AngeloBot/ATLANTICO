@@ -1,4 +1,3 @@
-#include <StandardCplusplus.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include <HMC5883L.h>
@@ -147,7 +146,11 @@ void acquire_Hall(){
   statusFRIGHT = analogRead(pinFRIGHT);
   statusFLEFT = analogRead(pinFLEFT);
 
-  status_Hall[4]={0,0,0,0};
+  status_Hall[0]=0;
+  status_Hall[1]=0;
+  status_Hall[2]=0;
+  status_Hall[3]=0;
+
   if ( statusFRIGHT < maxHallSignal){
     status_Hall[3]=1;
     }
