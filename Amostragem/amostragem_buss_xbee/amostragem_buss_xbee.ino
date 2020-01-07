@@ -2,6 +2,8 @@
 
 HMC5883L compass;
 
+float rumo_real =0;
+
 void setup(){
 
     Serial.begin(9600);
