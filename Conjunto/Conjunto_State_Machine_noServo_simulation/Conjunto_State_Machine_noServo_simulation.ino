@@ -174,7 +174,9 @@ float acquire_buss(){
   // You can find your declination on: http://magnetic-declination.com/
   // (+) Positive or (-) for negative
   // For Bytom / Poland declination angle is 4'26E (positive)
-  // For Liberdade, São Paulo / Brazil declination angle is 21'34W(negative)
+  // For Barueri / Brazil declination angle is 21'22W(negative)
+  // For Santo Amaro / Brazil declination angle is 21'23W(negative)
+  // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
   // Formula: (deg + (min / 60.0)) / (180 / M_PI);
   float declinationAngle = (-21.0 - (34.0 / 60.0)) / (180 / M_PI);
   rumo_real += declinationAngle;
