@@ -1,3 +1,7 @@
+#include <HMC5883L.h>
+
+HMC5883L compass;
+
 void setup(){
 
     Serial.begin(9600);

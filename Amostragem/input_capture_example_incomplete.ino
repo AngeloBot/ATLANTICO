@@ -32,7 +32,7 @@ void Init(void)
     TCCR1A = 0x00;   // Normal Mode
     TCCR1B = 0x05; // prescalar 1024
     TIMSK1 = 0x21;  //-Interrupt enable 
-                     // Timer overflow enable 
+    // Timer overflow enable 
     TCNT1 = 0; 
     //Clear flags in Timer flag reg 1
     TIFR1  = 0x21;              //0x21; 
