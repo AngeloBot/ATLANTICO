@@ -323,7 +323,7 @@ void setup() {
   compass.setSamples(HMC5883L_SAMPLES_8);
 
   // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(95, -3);
+  compass.setOffset(116, -47);
   
 }
 
