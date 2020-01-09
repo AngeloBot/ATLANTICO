@@ -19,6 +19,7 @@ def main():
         
     info=[]
     
+
     for line in f:
         print("working line ",line)
         print(type(line))
@@ -27,11 +28,28 @@ def main():
         if line_track >= 2:
             
             timestamp=line[0:23]
+            '''
             timestamp=list(timestamp)
             timestamp[10]='\t'
             timestamp[16]='\t'
             timestamp="".join(timestamp)
-            this_time= datetime.strptime(timestamp, "%m-%d-%Y\t%H:%M\t%S.%f")
+            '''
+            this_time= datetime.strptime(timestamp, "%m-%d-%Y %H:%M:%S.%f")
+            #this_time= datetime.strptime(timestamp, "%m-%d-%Y\t%H:%M\t%S.%f")
+            
+            if line_track == 2:
+                delta="0"
+                last_time=this_time
+                
+            else:
+                delta=float(delta)
+                diff=this_time-last_time
+                delta+=diff.seconds+diff.microseconds*0.000006
+                delta=str(delta)
+                last_time=this_time
+                
+            #this_time= datetime.strptime(timestamp, "%m-%d-%Y\t%H:%M\t%S.%f")
+            
             
             line=line[33:]
             print("line: ",line)
@@ -60,7 +78,7 @@ def main():
                             
                             info.pop(0)
                         try:
-                            f_output.write(str(timestamp+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
+                            f_output.write(str(timestamp+"\t"+delta+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
                             f_output.flush()
                             info=[]
                         except UnicodeDecodeError:
@@ -70,7 +88,7 @@ def main():
                     elif len(info) == 16 or len(info) == 14 or len(info) == 12:
                         print("im SUPER in")
                         try:
-                            f_output.write(str(timestamp+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
+                            f_output.write(str(timestamp+"\t"+delta+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
                             f_output.flush()
                             info=[]
                         except UnicodeDecodeError:
