@@ -19,91 +19,106 @@ def main():
         
     info=[]
     
+    f_list=f.readlines()
+    f.close()
 
-    for line in f:
-        print("working line ",line)
-        print(type(line))
+    #print(f_list)
+    len_f_list=len(f_list)
+    
+    delta=0
+    time=0
+    for line_track in range(len_f_list-1):
         
+        line=f_list[line_track]
+        next_line=f_list[line_track+1]
+        print("working line ",line)
+        #print(type(line))
+        #print("next line ", next_line)
         
         if line_track >= 2:
-            
-            timestamp=line[0:23]
-            '''
-            timestamp=list(timestamp)
-            timestamp[10]='\t'
-            timestamp[16]='\t'
-            timestamp="".join(timestamp)
-            '''
+
+                
+            timestamp="".join(list(line)[0:23])
+            next_timestamp="".join(list(next_line)[0:23])
+
             this_time= datetime.strptime(timestamp, "%m-%d-%Y %H:%M:%S.%f")
+            next_time= datetime.strptime(next_timestamp, "%m-%d-%Y %H:%M:%S.%f")
             #this_time= datetime.strptime(timestamp, "%m-%d-%Y\t%H:%M\t%S.%f")
             
-            if line_track == 2:
-                delta="0"
-                last_time=this_time
-                
-            else:
-                delta=float(delta)
-                diff=this_time-last_time
-                delta+=diff.seconds+diff.microseconds*0.000006
-                delta=str(delta)
-                last_time=this_time
-                
-            #this_time= datetime.strptime(timestamp, "%m-%d-%Y\t%H:%M\t%S.%f")
+            #print("this time ", this_time)
+            #print("next time ", next_time)
+            diff=next_time-this_time
+            #print("diff ",diff)
             
-            
-            line=line[33:]
+            line="".join(list(line)[34:])
             print("line: ",line)
             line=list(line)
             line.pop()
-            
-            print("in")
+            #print("in")
+           
+            f_output_list=[]
+            info_count=0
             
             for char in line:
                 
-                print("info before ",info)
+                #print("info before ",info)
                 if "0D0A" in "".join(info):
-                    print("im in")
+                    #print("im in")
                     #len_info=len(info)
                     #print(len_info)
                     #print(str(info))
-                    
-                    if len(info)==15 or len(info)==13:
+                
+                    if len(info)==15 or len(info)==13 or len(info)==11 or len(info)==9 or len(info)==7:
                         info.pop(0)
-                    
+            
                     elif len(info) > 16:
-                        print("im DAT in")
-                        print("".join(info))
+                        #print("im DAT in")
+                        #print("".join(info))
                         while len(info) > 16:
                             print(info)
-                            
+                    
                             info.pop(0)
-                        try:
-                            f_output.write(str(timestamp+"\t"+delta+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
-                            f_output.flush()
-                            info=[]
-                        except UnicodeDecodeError:
-                            info=[]
-                            print(str(timestamp+"\t"+"DATA UNREADABLE"))
-                       
-                    elif len(info) == 16 or len(info) == 14 or len(info) == 12:
-                        print("im SUPER in")
-                        try:
-                            f_output.write(str(timestamp+"\t"+delta+"\t"+bytes.fromhex("".join(info)).decode("ascii")))
-                            f_output.flush()
-                            info=[]
-                        except UnicodeDecodeError:
-                            info=[]
-                            print(str(timestamp+"\t"+"DATA UNREADABLE"))
+                        
+                        f_output_list.append(info[:])
+                        info=[]
+                        info_count+=1
+                        
+               
+                    elif len(info) == 16 or len(info) == 14 or len(info) == 12 or len(info)==10 or len(info)==8 or len(info) == 6:
+                        #print("im SUPER in")
+                        f_output_list.append(info[:])
+                        info=[]
+                        info_count+=1
                     
                     else:
                         info=[]
-    
-                info.append(char)
-
                     
-        line_track+=1
+                    #print("f_output_list ",f_output_list)
+
+                info.append(char)
+                #print("info after ", info)
+            
+            print("f_output_list ",f_output_list)
+            info_translate=[]
+            for info_i in f_output_list:
+                try:
+                    info_translate.append(bytes.fromhex("".join(info_i)).decode("ascii"))    
+                except UnicodeDecodeError:
+                    info_count-=1
+                    print(str(timestamp+"\t"+"DATA UNREADABLE"))
+                    
+            try:
+                delta=(diff.seconds+diff.microseconds*0.000001)/info_count     
+            except ZeroDivisionError:
+                print("Empty Line")
+            print(info_translate)
+            for info_i in info_translate:
+                
+                print(time)
+                f_output.write(str(timestamp+"\t"+str(time)+"\t"+info_i))
+                f_output.flush()
+                time+=delta
         
-    f.close()
     f_output.close()
 
 main()
