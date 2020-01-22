@@ -20,6 +20,7 @@ bool stable; //variável para prender processo em loop
 //erro de rumo
 int zero_margin_rumo=10;
 int lambda_rumo= 15;
+float erro_rumo=0;
 
 //variáveis bússola
 float rumo_real;
@@ -30,10 +31,6 @@ float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.74304
 int waypoint_count = 0;
 
 //variáveis HALL=============================
-int statusLEFT = 0;
-int statusRIGHT = 0;
-int statusFLEFT = 0;
-int statusFRIGHT = 0;
 int status_Hall[4]={0,0,0,0};
 
 //Nível lógico máximo para representar ativação do hall
@@ -60,7 +57,8 @@ unsigned long sentido;
 //variáveis dos Interrupts
 
 const uint8_t t_load = 0;
-const uint8_t t0_cicles = 195;
+const uint8_t t0_cicles = 195; //oara prescale=1024 com amostragem ~80Hz
+const uint16_t contador_gps =0;
 
 
 void acquire_GPS() {
@@ -141,12 +139,16 @@ void acquire_GPS() {
 
 void acquire_Hall(){
 
-  statusRIGHT = analogRead(pinRIGHT);
-  statusLEFT = analogRead(pinLEFT);
-  statusFRIGHT = analogRead(pinFRIGHT);
-  statusFLEFT = analogRead(pinFLEFT);
+  int statusRIGHT = analogRead(pinRIGHT);
+  int statusLEFT = analogRead(pinLEFT);
+  int statusFRIGHT = analogRead(pinFRIGHT);
+  int statusFLEFT = analogRead(pinFLEFT);
 
-  status_Hall[4]={0,0,0,0};
+  status_Hall[0]=0;
+  status_Hall[1]=0;
+  status_Hall[2]=0;
+  status_Hall[3]=0;
+
   if ( statusFRIGHT < maxHallSignal){
     status_Hall[3]=1;
     }
@@ -207,14 +209,14 @@ int check_rumo(){
        }
      
   else if (((delta_rumo) < 360  && (delta_rumo) > 180) || ((delta_rumo) > -360 && (delta_rumo) < -180)) {
-        erro_rumo = abs(abs(delta_rumo) - 360);
+       erro_rumo = abs(abs(delta_rumo) - 360);
        }
 
   else if ((delta_rumo <= zero_margin_rumo && delta_rumo >= -zero_margin_rumo) || (delta_rumo <= -350) || (delta_rumo >= 350)){
        erro_rumo = 0;
       }
 
-  if (abs(erro_rumo) > 80 && abs(erro_rumo) < 90 ){
+  if (abs(delta_rumo) > 80 && abs(delta_rumo) < 90 ){
     current_state=5; //ir para cambar
     return false;
     }
@@ -321,7 +323,7 @@ void setup() {
   compass.setSamples(HMC5883L_SAMPLES_8);
 
   // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(95, -3);
+  compass.setOffset(116, -47);
   
 }
 
@@ -344,7 +346,6 @@ switch (current_state){
 
   
   case 1: //manter_rumo
-  Serial.println("manter_rumo");
   //manter servo parado na posição
   stable = true;
   //pode inserir um timer pra não deixar o código preso nesse loop
@@ -387,7 +388,6 @@ switch (current_state){
 
   
   case 2: //arribar
-  Serial.println("arribar");
   stable = false;
 
   //talvez colocar algum timer pra tirar o código desse loop.
@@ -399,7 +399,6 @@ switch (current_state){
     case 0: //vento de bombordo
     if (status_Hall != {1,1,0,0}){
     //mover leme para bombordo
-      Serial.println("movendo leme para bombordo");
       }
     
     else{
@@ -412,7 +411,6 @@ switch (current_state){
     case 1: //vento de boreste
     if (status_Hall != {0,0,1,1}){
     //mover leme para boreste
-    Serial.println("movendo leme para boreste");
       }
     
     else{
@@ -426,7 +424,6 @@ switch (current_state){
   
   case 3: //orçar
   stable = false;
-  Serial.println("orçar");
   //talvez colocar algum timer pra tirar o código desse loop.
   while (!stable){
     
@@ -436,7 +433,7 @@ switch (current_state){
     case 0: //vento de bombordo
     if (status_Hall != {1,1,0,0}){
     //mover leme para boreste
-    Serial.println("mover leme para boreste");
+    
       }
     
     else{
@@ -449,7 +446,7 @@ switch (current_state){
     case 1: //vento de boreste
     if (status_Hall != {0,0,1,1}){
     //mover leme para bombordo
-    Serial.println("mover leme para bombordo");
+    
       }
     
     else{
@@ -464,14 +461,13 @@ switch (current_state){
 
   
   case 4: //ajeitar_rumo
-  Serial.println("ajeitar_rumo");
+  
 
   previous_state=4;
   break;
 
   
   case 5: //cambar
-  Serial.println("cambar");
 
   bool stable = false;
 
@@ -481,7 +477,8 @@ switch (current_state){
     //mover incisivamente leme para o lado oposto do vento
 
     stable=check_rumo();
-
+    //função_move_servo(delta_rumo,case_rumo)
+    
   }
 
 
@@ -497,6 +494,6 @@ switch (current_state){
 ISR(TIMER0_COMPA_vct){
   acquire_Hall();
   acquire_buss();
-  Serial.println("Interrupt");
-
+  contador_gps+=1;
+  if contador_gps == 
 }

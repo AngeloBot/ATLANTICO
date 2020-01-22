@@ -26,12 +26,12 @@ void setup() {
     TIMSK1 = (1<<OCIE1A);
 
     //Enable global interrupts
-    sci();
+    sei();
 
 
 }
 
-void loop{
+void loop(){
     delay(500);
 
 }
@@ -42,4 +42,3 @@ ISR(TIMER1_COMPA_vect){
     PORTB ^= (1<<led_pin);
 
 }
-

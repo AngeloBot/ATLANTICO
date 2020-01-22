@@ -495,5 +495,8 @@ ISR(TIMER0_COMPA_vct){
   acquire_Hall();
   acquire_buss();
   contador_gps+=1;
-  if contador_gps == 
+  if (contador_gps == 600){
+    acquire_GPS();
+
+  }
 }
