@@ -1,15 +1,42 @@
+#include <Wire.h>
 #include <HMC5883L.h>
 
 HMC5883L compass;
-//scl=> A5, sda=>A4
+//Pins
+const int led_pin = PB5; //pin 13 interno
 
-float rumo_real =0;
+//Counter and compare values
+const uint16_t t1_load =0;
+const uint16_t t1_comp = 31250;
 
-void setup(){
+//variáveis bússola
+float rumo_real;
 
-  Serial.begin(9600);
-  
-  // Initialize Initialize HMC5883L
+
+void setup() {
+
+    Serial.begin(9600);
+    //Set LED pin to be output
+    DDRB |= (1<< led_pin);
+
+    //Reset Timer1 Control Reg A
+    TCCR1A = 0;
+
+    //Set to prescaler of 256
+    TCCR1B |= (1<<CS12);
+    TCCR1B &= ~(1<<CS11);
+    TCCR1B &= ~(1<<CS10);
+
+    //Reset Timer1 and set compare value
+    TCNT1 = t1_load;
+    OCR1A = t1_comp;
+
+    //Enable Timer1 compare interrupt
+    TIMSK1 = (1<<OCIE1A);
+
+    //Enable global interrupts
+    sei();
+
   Serial.println("Initialize HMC5883L");
   while (!compass.begin())
   {
@@ -51,14 +78,20 @@ void setup(){
   compass.setSamples(HMC5883L_SAMPLES_8);
 
   // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(127, -44);
+  compass.setOffset(118, -48);
+
 }
 
-void loop(){
-  
-  //lê a bússola e guarda o valor
+void loop(){ 
+  Serial.println(rumo_real);
+}
 
-  Vector norm = compass.readNormalize();
+ISR(TIMER1_COMPA_vect){
+
+    TCNT1 =t1_load;
+    PORTB ^= (1<<led_pin);
+    
+    Vector norm = compass.readNormalize();
 
   // Calculate heading
   rumo_real = atan2(norm.YAxis, norm.XAxis);
@@ -86,9 +119,6 @@ void loop(){
   }
 
   // Converter para graus e guardar na variável apropriada
-  rumo_real = rumo_real * 180/M_PI; 
-
-  Serial.println(rumo_real);
-  
+  rumo_real = rumo_real * 180/M_PI;
 
 }

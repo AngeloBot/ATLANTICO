@@ -34,81 +34,10 @@ int pinFRIGHT = A3;
 //variáveis dos Interrupts
 
 const uint8_t t_load = 0;
-const uint8_t t0_cicles = 254; //para prescale=1024 com amostragem ~80Hz
+const uint8_t t0_cicles = 195; //para prescale=1024 com amostragem ~80Hz
 int contador_gps =0;
 
-void acquire_Hall(){
 
-  int statusRIGHT = analogRead(pinRIGHT);
-  int statusLEFT = analogRead(pinLEFT);
-  int statusFRIGHT = analogRead(pinFRIGHT);
-  int statusFLEFT = analogRead(pinFLEFT);
-
-  status_Hall[0]=0;
-  status_Hall[1]=0;
-  status_Hall[2]=0;
-  status_Hall[3]=0;
-
-  if ( statusFRIGHT < maxHallSignal){
-    status_Hall[3]=1;
-    }
-  if ( statusRIGHT < maxHallSignal){
-    status_Hall[2]=1;
-    }
-  if ( statusFLEFT < maxHallSignal){
-    status_Hall[0]=1;
-    }
-  if ( statusLEFT < maxHallSignal){
-    status_Hall[1]=1; 
-    }
-    
-  Serial.print("HALL ");
-  Serial.print(status_Hall[0]);
-  Serial.print(" ");
-  Serial.print(status_Hall[1]);
-  Serial.print(" ");
-  Serial.print(status_Hall[2]);
-  Serial.print(" ");
-  Serial.println(status_Hall[3]);
-  }
-
-
-float acquire_buss(){
-  //lê a bússola e guarda o valor
-
-  Vector norm = compass.readNormalize();
-
-  // Calculate heading
-  rumo_real = atan2(norm.YAxis, norm.XAxis);
-
-  // Set declination angle on your location and fix heading
-  // You can find your declination on: http://magnetic-declination.com/
-  // (+) Positive or (-) for negative
-  // For Bytom / Poland declination angle is 4'26E (positive)
-  // For Barueri / Brazil declination angle is 21'22W(negative)
-  // For Santo Amaro / Brazil declination angle is 21'23W(negative)
-  // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
-  // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-  float declinationAngle = (-21.0 - (34.0 / 60.0)) / (180 / M_PI);
-  rumo_real += declinationAngle;
-
-  // Correct for heading < 0deg and heading > 360deg
-  if (rumo_real < 0)
-  {
-    rumo_real += 2 * PI;
-  }
-
-  if (rumo_real > 2 * PI)
-  {
-    rumo_real -= 2 * PI;
-  }
-
-  // Converter para graus e guardar na variável apropriada
-  rumo_real = rumo_real * 180/M_PI; 
-  Serial.print("BUSS ");
-  Serial.println(rumo_real);
-
-}
 
 
 void setup() {
@@ -141,7 +70,6 @@ void setup() {
   while (!compass.begin())
   {
     Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-    delay(500);
   }
 
   // Set measurement range : (resolução) [realce]
@@ -178,16 +106,80 @@ void setup() {
   compass.setSamples(HMC5883L_SAMPLES_8);
 
   // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(116, -47);
+  compass.setOffset(118, -48);
   
 }
 
 void loop() {
   Serial.println("A");
 }
-ISR(TIMER0_COMPA_vct){
-  Serial.println("im in");
-  acquire_Hall();
-  acquire_buss();
+ISR(TIMER0_COMPA_vect){
+
+  int statusRIGHT = analogRead(pinRIGHT);
+  int statusLEFT = analogRead(pinLEFT);
+  int statusFRIGHT = analogRead(pinFRIGHT);
+  int statusFLEFT = analogRead(pinFLEFT);
+
+  status_Hall[0]=0;
+  status_Hall[1]=0;
+  status_Hall[2]=0;
+  status_Hall[3]=0;
+
+  if ( statusFRIGHT < maxHallSignal){
+    status_Hall[3]=1;
+    }
+  if ( statusRIGHT < maxHallSignal){
+    status_Hall[2]=1;
+    }
+  if ( statusFLEFT < maxHallSignal){
+    status_Hall[0]=1;
+    }
+  if ( statusLEFT < maxHallSignal){
+    status_Hall[1]=1; 
+    }
+    
+  Serial.print("HALL ");
+  Serial.print(status_Hall[0]);
+  Serial.print(" ");
+  Serial.print(status_Hall[1]);
+  Serial.print(" ");
+  Serial.print(status_Hall[2]);
+  Serial.print(" ");
+  Serial.println(status_Hall[3]);
+
+  //lê a bússola e guarda o valor
+
+  Vector norm = compass.readNormalize();
+
+  // Calculate heading
+  rumo_real = atan2(norm.YAxis, norm.XAxis);
+
+  // Set declination angle on your location and fix heading
+  // You can find your declination on: http://magnetic-declination.com/
+  // (+) Positive or (-) for negative
+  // For Bytom / Poland declination angle is 4'26E (positive)
+  // For Barueri / Brazil declination angle is 21'22W(negative)
+  // For Santo Amaro / Brazil declination angle is 21'23W(negative)
+  // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
+  // Formula: (deg + (min / 60.0)) / (180 / M_PI);
+  float declinationAngle = (-21.0 - (34.0 / 60.0)) / (180 / M_PI);
+  rumo_real += declinationAngle;
+
+  // Correct for heading < 0deg and heading > 360deg
+  if (rumo_real < 0)
+  {
+    rumo_real += 2 * PI;
+  }
+
+  if (rumo_real > 2 * PI)
+  {
+    rumo_real -= 2 * PI;
+  }
+
+  // Converter para graus e guardar na variável apropriada
+  rumo_real = rumo_real * 180/M_PI; 
+  Serial.print("BUSS ");
+  Serial.println(rumo_real);
+
   
 }
