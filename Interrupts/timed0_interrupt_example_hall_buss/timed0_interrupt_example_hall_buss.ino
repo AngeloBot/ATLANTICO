@@ -5,10 +5,6 @@
 
 HMC5883L compass;
 
-
-SoftwareSerial serial1(6, 7); // RX, TX conectar invertido com as portas do GPS
-TinyGPS gps1;
-
 //parâmetros de erro
 
 //erro de rumo
@@ -62,7 +58,6 @@ void setup() {
   sei();
 
   //Serial.println("Esperando por Dados do Modulo...");
-  serial1.begin(9600);
   Serial.begin(9600);
   
   // Initialize Initialize HMC5883L

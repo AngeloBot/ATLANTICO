@@ -51,7 +51,7 @@ void setup(){
   compass.setSamples(HMC5883L_SAMPLES_8);
 
   // Set calibration offset. See HMC5883L_calibration.ino
-  compass.setOffset(127, -44);
+  compass.setOffset(110, -38);
 }
 
 void loop(){
@@ -71,7 +71,7 @@ void loop(){
   // For Santo Amaro / Brazil declination angle is 21'23W(negative)
   // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
   // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-  float declinationAngle = (-21.0 - (34.0 / 60.0)) / (180 / M_PI);
+  float declinationAngle = (-21.0 - (23.0 / 60.0)) / (180 / M_PI);
   rumo_real += declinationAngle;
 
   // Correct for heading < 0deg and heading > 360deg
