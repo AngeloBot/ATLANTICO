@@ -40,8 +40,21 @@ for c =1:multiple_plots
     plot(f,pow2db(pxx))
     hold on
     
+    figure(3);
+    
+    Y=fft(x,698);
+    
+    Pyy=Y.*conj(Y)/698
+    
+    f=110*(0:(698/2))/698;
+    
+    plot(f,Pyy(1:350))
+    
     fclose(fileID_x);
     fclose(fileID_t);
+    
+    fileID_x=-1;
+    fileID_t=-1;
 end
 
 figure(1)
