@@ -20,13 +20,14 @@ for c =1:multiple_plots
     
     formatSpec='%f';
     t=fscanf(fileID_t,formatSpec);
-    x=fscanf(fileID_x,formatSpec)
+    x=fscanf(fileID_x,formatSpec);
+    
     
     t=t.';
     x=x.';
     
-    length(x)
-    length(t)
+    length(x);
+    length(t);
     
     figure(1);
     plot(t,x)
