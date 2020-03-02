@@ -14,6 +14,8 @@ def main():
     identificador_output=str(input("Nome do arquivo de output: "))
     
     f_output=open("log_"+identificador_output+".txt",mode="w+", newline="\n")
+    f_output_t=open("t_"+identificador_output+".txt",mode="w+", newline="\n")
+    f_output_x=open("x_"+identificador_output+".txt",mode="w+", newline="\n")
     
     line_track=0
         
@@ -116,9 +118,15 @@ def main():
                 
                 print(time)
                 f_output.write(str(timestamp+"\t"+str(time)+"\t"+info_i))
+                f_output_t.write(str(time))
+                f_output_x.write(info_i)
                 f_output.flush()
+                f_output_t.flush()
+                f_output_x.flush()
                 time+=delta
         
     f_output.close()
+    f_output_t.close()
+    f_output_x.close()
 
 main()
