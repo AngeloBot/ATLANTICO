@@ -91,7 +91,7 @@ if mode=='m'
     figure(2)
     hold off
     
-    igure(3)
+    figure(3)
     hold off
 
 else
