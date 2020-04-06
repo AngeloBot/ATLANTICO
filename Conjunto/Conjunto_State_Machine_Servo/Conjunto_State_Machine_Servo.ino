@@ -2,9 +2,22 @@
 #include <Wire.h>
 #include <HMC5883L.h>
 #include <TinyGPS.h>
+#include <Servo.h>
+
 
 HMC5883L compass;
 
+Servo servo; 
+
+
+//variáveis servo
+int pos;
+int pinServo=11;
+int pos_zero=90;
+
+//o sentido crescente do servo é sentido anti-horário, portanto, para virar o barco para BB, deve-se diminuir o ângulo e vice-versa
+int acres_BB=-30;
+int acres_BE=30;
 
 SoftwareSerial serial1(6, 7); // RX, TX conectar invertido com as portas do GPS
 TinyGPS gps1;
@@ -17,13 +30,15 @@ bool stable; //variável para prender processo em loop
 //parâmetros de erro
 
 //erro de rumo
+//convencionando que erros de rumo <0 significam que o waypoint está à BB
+//convencionando que erros de rumo >0 significam que o waypoint está à BE
 int zero_margin_rumo=10;
 int lambda_rumo= 10;
-int lambda_jib=5;
+int lambda_jibe=5;
 volatile float erro_rumo=0;
 
 //variáveis bússola
-float rumo_real;
+volatile float rumo_real;
 
 
 //lista de waypoints com respectivos desvios magnéticos
@@ -31,22 +46,22 @@ float lat_lon_desvio_waypoint[] = {-23.578426, -46.744687, -21.32, -23580636, -4
 volatile int waypoint_count = 0;
 
 //variáveis HALL=============================
-volatile int status_Hall = B0000;
+volatile int status_Hall = B0;
 
 //Nível lógico máximo para representar ativação do hall
 int maxHallSignal = 10;
 
 //pin para input proveniente sensores
-int pinLEFT = A2;
-int pinRIGHT = A1; 
-int pinFLEFT = A3;
-int pinFRIGHT = A0;
+int pinLEFT = A1;
+int pinRIGHT = A2; 
+int pinFLEFT = A0;
+int pinFRIGHT = A3;
 
 //pin para output nos leds
-int LpinLEFT = 4;
-int LpinRIGHT = 7;
-int LpinFLEFT = 2;
-int LpinFRIGHT = 8;
+int LpinLEFT = 7;
+int LpinRIGHT = 4;
+int LpinFLEFT = 8;
+int LpinFRIGHT = 2;
 
 //variáveis para o GPS
 volatile float rumo_ideal = 0;
@@ -99,18 +114,42 @@ void acquire_Hall(){
   int statusFLEFT = analogRead(pinFLEFT);
 
   if ( statusFRIGHT < maxHallSignal){
-    status_Hall |= (1<<3);
+    status_Hall |= 1;
+    digitalWrite(LpinFRIGHT, HIGH);
     }
-  if ( statusRIGHT < maxHallSignal){
-    status_Hall |= (1<<2);
+  else{
+
+    digitalWrite(LpinFRIGHT, LOW);
+    status_Hall &= ~1;
     }
-  if ( statusFLEFT < maxHallSignal){
+    
+    if ( statusRIGHT < maxHallSignal){
     status_Hall |= (1<<1);
+    digitalWrite(LpinRIGHT, HIGH);
     }
-  if ( statusLEFT < maxHallSignal){
-    status_Hall |= (1<<0);
+  else{
+
+    digitalWrite(LpinRIGHT, LOW);
+    status_Hall &= ~(1<<1);
     }
-  }
+    
+    if ( statusLEFT < maxHallSignal){
+    status_Hall |= (1<<2);
+    digitalWrite(LpinLEFT, HIGH);
+    }
+  else{
+    status_Hall &= ~(1<<2);
+    digitalWrite(LpinLEFT, LOW);
+    }
+    if ( statusFLEFT < maxHallSignal){
+    status_Hall |= (1<<3);
+    digitalWrite(LpinFLEFT, HIGH);
+    }
+  else{
+
+    digitalWrite(LpinFLEFT, LOW);
+    status_Hall &= ~(1<<3);
+    }
 
 
 float acquire_buss(){
@@ -145,17 +184,10 @@ float acquire_buss(){
 
   // Converter para graus e guardar na variável apropriada
   rumo_real = rumo_real * 180/M_PI;
-  erro_rumo=rumo_ideal-rumo_real;
-
-}
-
-int check_rumo(){
-  //de acordo com a última leitura da bússola, verifica o desvio do rumo real
-
   float delta_rumo = rumo_real - rumo_ideal;
   
   if (((delta_rumo) < 0 && (delta_rumo) >= -180) || ((delta_rumo) > 0 && (delta_rumo) <= 180)) {
-        erro_rumo = abs(delta_rumo);
+        erro_rumo = delta_rumo;
        }
      
   else if (((delta_rumo) < 360  && (delta_rumo) > 180) || ((delta_rumo) > -360 && (delta_rumo) < -180)) {
@@ -166,22 +198,15 @@ int check_rumo(){
        erro_rumo = 0;
       }
 
-  if (abs(delta_rumo) > 80 && abs(delta_rumo) < 90 ){
-    current_state=5; //ir para cambar
-    return false;
-    }
-
-  else if (abs(erro_rumo) > lamda_rumo){
-    current_state=4; //ir para ajeitar_rumo
-    return false;
-    }
-  
-  else{
-    return true;
-    }
-  }
+}
 
 void setup() {
+
+  //config servo
+
+  servo.attach(pinServo);
+  servo.write(pos_zero);
+
 
   //Configuração dos Interrupts
   //os timers usados serão o 0, temos frequencia de amostragem de ~80Hz (T=0.1248s)
@@ -206,13 +231,9 @@ void setup() {
   previous_state = 0;
   waypoint_count = 0;
 
-  //settar direção inicial do vento
-  //wind= B0; //se bombordo
-  wind= B1; //se boreste
-
-  lat_waypoint=lat2_lon2_desvio[0];
-  long_waypoint=lat2_lon2_desvio[1];
-  desvio_waypoint=lat2_lon2_desvio[2];
+  lat_waypoint=lat_lon_desvio_waypoint[0];
+  long_waypoint=lat_lon_desvio_waypoint[1];
+  desvio_waypoint=lat_lon_desvio_waypoint[2];
   
   Serial.println("Esperando por Dados do Modulo...");
   serial1.begin(9600);
@@ -283,9 +304,10 @@ void loop() {
   
     case 0: //à favor
 
-      //manter leme
+      pos=pos_zero
+      servo.write(pos);
 
-      if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110){
+      if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
         current_state=3; //ir para contra por BB
         break;
 
@@ -294,29 +316,33 @@ void loop() {
         current_state=4; //ir para contra por BE
         break;
       }
-      else if(erro_rumo > lambda_rumo){
+      else if(erro_rumo > 0{
         current_state=1; //ir para ajeitar BB
         break;
       }
-      else if(erro_rumo < (-1)*lambda_rumo){
-        current_state=4; //ir para ajeitar BE
+      else if(erro_rumo < 0){
+        current_state=2; //ir para ajeitar BE
       }
       break;
 
     case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
 
       //leme p/ BB
+      pos+=acres_BB;
+      servo.write(pos);
 
-      if(erro_rumo < lambda_rumo){
+      if(erro_rumo == 0 || status_Hall != B0){
         current_state=0; //ir para à favor
       }
       break;
 
     case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
 
-      //manter leme
+      //leme p/ BE
+      pos+=acres_BE;
+      servo.write(pos);
 
-      if(erro_rumo > (-1)*lambda_rumo){
+      if(erro_rumo == 0 || status_Hall != B0){
         current_state=0; //ir para à favor
       }
       break;
@@ -324,6 +350,8 @@ void loop() {
     case 3: //contra por BB------------------------------------------------------------------------------------------------
       
       //manter leme
+      pos=pos_zero;
+      servo.write(pos);
       
       if(status_Hall==B0100 || status_Hall==B0110){
         current_state=7; //ir para arribar_1 BB
@@ -331,7 +359,7 @@ void loop() {
 
       }
       else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
-        current_state=11; //ir para Jib BB
+        current_state=11; //ir para Jibe BB
         break;
       }
       else if(erro_rumo > 0 && status_Hall==B1000){//rumo_ideal está para BB e pode orçar
@@ -343,16 +371,18 @@ void loop() {
       }
       break;
 
-    case 4: //contra por BB------------------------------------------------------------------------------------------------
+    case 4: //contra por BE------------------------------------------------------------------------------------------------
     
       //manter leme
+      pos=pos_zero;
+      servo.write(pos);
 
       if(status_Hall==B0010 || status_Hall==B0110){
         current_state=8; //ir para arribar_1 BE
         break;
       }
       else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
-        current_state=12; //ir para Jib BE
+        current_state=12; //ir para Jibe BE
         break;
       }
       else if(erro_rumo < 0 && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
@@ -368,7 +398,7 @@ void loop() {
     
       //leme p/ BE
 
-      if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+      if(status_Hall==B0000 || erro_rumo==0) {
         current_state=3; //ir para contra por BB
       }
       break;
@@ -377,7 +407,7 @@ void loop() {
     
       //leme p/ BB
 
-      if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+      if(status_Hall==B0000 || erro_rumo==0) {
         current_state=4; //ir para contra por BE
       }
       break;
@@ -404,7 +434,7 @@ void loop() {
     
       //leme p/ BB
 
-      if(status_Hall==B1100 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+      if(status_Hall==B1100 || erro_rumo==0) {
         current_state=3; //ir para contra por BB
       }
       break;
@@ -412,8 +442,10 @@ void loop() {
     case 10: //orçar BE----------------------------------------------------------------------------------------------------
     
       //leme p/ BE
+      pos=pos_centro;
+      servo.write(pos);
 
-      if(status_Hall==B0011 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+      if(status_Hall==B0011 || erro_rumo==0 {
         current_state=4; //ir para contra por BE
       }
       break;
@@ -421,8 +453,10 @@ void loop() {
     case 11: //Jib BB------------------------------------------------------------------------------------------------------
     
       //leme p/ BE
+      pos=pos_centro+acres_BE;
+      servo.write(pos);
 
-      if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo){//<<<<<<<<<<<<<adicionar condição de 10s
+      if(erro_rumo==0){//<<<<<<<<<<<<<adicionar condição de 10s
         current_state=4; //ir para contra por BE
       }
       break;
@@ -430,8 +464,10 @@ void loop() {
     case 12: //orçar BE----------------------------------------------------------------------------------------------------
     
       //leme p/ BB
+      pos=pos_centro+acres_BB;
+      servo.write(pos);
 
-      if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo) {//<<<<<<<<<<<<<adicionar condição de 10s
+      if(erro_rumo==0) {//<<<<<<<<<<<<<adicionar condição de 10s
         current_state=3; //ir para contra por BB
       }
       break;
@@ -439,6 +475,8 @@ void loop() {
     case 13: //espera------------------------------------------------------------------------------------------------------
     
       //leme ao centro
+      pos=pos_centro;
+      servo.write(pos);
       //<<<<<<<<<<<<<adicionar condição de 10s
       break;
 

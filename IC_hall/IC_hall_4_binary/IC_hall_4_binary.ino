@@ -4,16 +4,16 @@ int statusFLEFT = 0;
 int statusFRIGHT = 0;
 
 //pin para input proveniente sensores
-int pinLEFT = A2;
-int pinRIGHT = A1; 
-int pinFLEFT = A3;
-int pinFRIGHT = A0;
+int pinLEFT = A1;
+int pinRIGHT = A2; 
+int pinFLEFT = A0;
+int pinFRIGHT = A3;
 
 //pin para output nos leds
-int LpinLEFT = 4;
-int LpinRIGHT = 7;
-int LpinFLEFT = 2;
-int LpinFRIGHT = 8;
+int LpinLEFT = 7;
+int LpinRIGHT = 4;
+int LpinFLEFT = 8;
+int LpinFRIGHT = 2;
 
 int status_Hall =B0;
 int maxHallSignal=10;
@@ -43,39 +43,42 @@ void loop() {
     statusFLEFT = analogRead(pinFLEFT);
 
     if ( statusFRIGHT < maxHallSignal){
-    status_Hall |= (1<<3);
-    digitalWrite(LpinRIGHT, HIGH);
-    }
-  else{
-
-    digitalWrite(LpinRIGHT, LOW);
-    }
-    
-    if ( statusRIGHT < maxHallSignal){
-    status_Hall |= (1<<2);
-    digitalWrite(LpinLEFT, HIGH);
-    }
-  else{
-
-    digitalWrite(LpinLEFT, LOW);
-    }
-
-    if ( statusFLEFT < maxHallSignal){
+    status_Hall |= 1;
     digitalWrite(LpinFRIGHT, HIGH);
     }
   else{
 
     digitalWrite(LpinFRIGHT, LOW);
+    status_Hall &= ~1;
+    }
+    
+    if ( statusRIGHT < maxHallSignal){
+    status_Hall |= (1<<1);
+    digitalWrite(LpinRIGHT, HIGH);
+    }
+  else{
+
+    digitalWrite(LpinRIGHT, LOW);
+    status_Hall &= ~(1<<1);
     }
     
     if ( statusLEFT < maxHallSignal){
-    status_Hall |= (1<<0);
+    status_Hall |= (1<<2);
+    digitalWrite(LpinLEFT, HIGH);
+    }
+  else{
+    status_Hall &= ~(1<<2);
+    digitalWrite(LpinLEFT, LOW);
+    }
+    if ( statusFLEFT < maxHallSignal){
+    status_Hall |= (1<<3);
     digitalWrite(LpinFLEFT, HIGH);
     }
   else{
 
     digitalWrite(LpinFLEFT, LOW);
+    status_Hall &= ~(1<<3);
     }
-
+    
     Serial.println(status_Hall);
   }
