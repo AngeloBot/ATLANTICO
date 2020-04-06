@@ -44,15 +44,37 @@ void loop() {
 
     if ( statusFRIGHT < maxHallSignal){
     status_Hall |= (1<<3);
+    digitalWrite(LpinRIGHT, HIGH);
     }
+  else{
+
+    digitalWrite(LpinRIGHT, LOW);
+    }
+    
     if ( statusRIGHT < maxHallSignal){
     status_Hall |= (1<<2);
+    digitalWrite(LpinLEFT, HIGH);
     }
+  else{
+
+    digitalWrite(LpinLEFT, LOW);
+    }
+
     if ( statusFLEFT < maxHallSignal){
-    status_Hall |= (1<<1);
+    digitalWrite(LpinFRIGHT, HIGH);
     }
+  else{
+
+    digitalWrite(LpinFRIGHT, LOW);
+    }
+    
     if ( statusLEFT < maxHallSignal){
     status_Hall |= (1<<0);
+    digitalWrite(LpinFLEFT, HIGH);
+    }
+  else{
+
+    digitalWrite(LpinFLEFT, LOW);
     }
 
     Serial.println(status_Hall);
