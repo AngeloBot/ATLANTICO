@@ -10,28 +10,28 @@ SoftwareSerial serial1(6, 7); // RX, TX conectar invertido com as portas do GPS
 TinyGPS gps1;
 
 //variáveis de estado da máquina
-int current_state = 1;
-int previous_state = 0;
-int wind; //0 para bombordo, 1 para boreste
+volatile int current_state = 0;
+volatile int previous_state = 0;
 bool stable; //variável para prender processo em loop
 
 //parâmetros de erro
 
 //erro de rumo
 int zero_margin_rumo=10;
-int lambda_rumo= 15;
-float erro_rumo=0;
+int lambda_rumo= 10;
+int lambda_jib=5;
+volatile float erro_rumo=0;
 
 //variáveis bússola
 float rumo_real;
 
 
 //lista de waypoints com respectivos desvios magnéticos
-float lat2_lon2_desvio[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};
-int waypoint_count = 0;
+float lat_lon_desvio_waypoint[] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};
+volatile int waypoint_count = 0;
 
 //variáveis HALL=============================
-int status_Hall[4]={0,0,0,0};
+volatile int status_Hall = B0000;
 
 //Nível lógico máximo para representar ativação do hall
 int maxHallSignal = 10;
@@ -49,16 +49,16 @@ int LpinFLEFT = 8;
 int LpinFRIGHT = 2;
 
 //variáveis para o GPS
-float rumo_ideal = 0;
-float latitude, longitude;
-float lat2, long2;
-unsigned long sentido;
+volatile float rumo_ideal = 0;
+volatile float lat_barco, long_barco;
+volatile float lat_waypoint, long_waypoint;
+//unsigned long sentido;
 
 //variáveis dos Interrupts
 
 const uint8_t t_load = 0;
-const uint8_t t0_cicles = 195; //oara prescale=1024 com amostragem ~80Hz
-const uint16_t contador_gps =0;
+const uint8_t t0_cicles = 255; //para prescale=1024 com amostragem ~61.2745Hz
+volatile int contador_gps =0;
 
 
 void acquire_GPS() {
@@ -71,69 +71,23 @@ void acquire_GPS() {
      recebido = (gps1.encode(cIn) || recebido);  //Verifica até receber o primeiro sinal dos satelites
   }
 
-  if ( (recebido) && ((millis() - delayPrint) > 1000) ) {  //Mostra apenas após receber o primeiro sinal. Após o primeiro sinal, mostra a cada segundo.
-     delayPrint = millis();
-     
-     Serial.println("----------------------------------------");
-     
-     //Latitude e Longitude
-     //long latitude, longitude; 
-     
-     
+  if (recebido) {
+
      unsigned long idadeInfo;
      gps1.f_get_position(&latitude, &longitude, &idadeInfo);   //O método f_get_position é mais indicado para retornar as coordenadas em variáveis float, para não precisar fazer nenhum cálculo    
 
-     if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-        //Serial.print("Latitude: ");
-        //Serial.println(latitude, 6);  //Mostra a latitude com a precisão de 6 dígitos decimais
-     }
-
-     if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-        //Serial.print("Longitude: ");
-        //Serial.println(longitude, 6);  //Mostra a longitude com a precisão de 6 dígitos decimais
-     }
-
-     if ( (latitude != TinyGPS::GPS_INVALID_F_ANGLE) && (longitude != TinyGPS::GPS_INVALID_F_ANGLE) ) {
-        Serial.print("Link para Google Maps:   https://maps.google.com/maps/?&z=10&q=");
-        Serial.print(latitude,6);
-        Serial.print(",");
-        Serial.println(longitude, 6);           
-     }
-
-     if (idadeInfo != TinyGPS::GPS_INVALID_AGE) {
-        //Serial.print("Idade da Informacao (ms): ");
-        //Serial.println(idadeInfo);
-     }
-
-
-
-     //sentito (em graus)
-     sentido = gps1.course();
-
-     Serial.print("Sentido (grau): ");
-     Serial.println(float(sentido), 2);
+     //sentido = gps1.course();
      
+     rumo_ideal = gps1.course_to(lat_barco, long_barco, lat_waypoint, long_waypoint);
+    
+    if (waypoint_radius > gps1.distance_between(at_barco, long_barco, lat_waypoint, long_waypoint)){
+      waypoint_count += 1;
+      lat_waypoint=lat_lon_desvio_waypoint[waypoint_count*3];
+      long_waypoint=lat_lon_desvio_waypoint[waypoint_count*3+1];
+      desvio_waypoint=lat_lon_desvio_waypoint[waypoint_count*3+2];
+      
+    }
 
-     //satelites e precisão
-     unsigned short satelites;
-     unsigned long precisao;
-     satelites = gps1.satellites();
-     precisao =  gps1.hdop();
-
-     if (satelites != TinyGPS::GPS_INVALID_SATELLITES) {
-        //Serial.print("Satelites: ");
-        //Serial.println(satelites);
-     }
-
-     if (precisao != TinyGPS::GPS_INVALID_HDOP) {
-        //Serial.print("Precisao (centesimos de segundo): ");
-        //Serial.println(precisao);
-     }
-     //float distancia_entre;
-     //distancia_entre = gps1.distance_between(lat1, long1, lat2, long2);
-
-     
-     rumo_ideal = gps1.course_to(latitude, longitude, lat2, long2);
   }
 }
 
@@ -144,23 +98,18 @@ void acquire_Hall(){
   int statusFRIGHT = analogRead(pinFRIGHT);
   int statusFLEFT = analogRead(pinFLEFT);
 
-  status_Hall[0]=0;
-  status_Hall[1]=0;
-  status_Hall[2]=0;
-  status_Hall[3]=0;
-
   if ( statusFRIGHT < maxHallSignal){
-    status_Hall[3]=1;
+    status_Hall |= (1<<3);
     }
   if ( statusRIGHT < maxHallSignal){
-    status_Hall[2]=1;
+    status_Hall |= (1<<2);
     }
   if ( statusFLEFT < maxHallSignal){
-    status_Hall[0]=1;
+    status_Hall |= (1<<1);
     }
   if ( statusLEFT < maxHallSignal){
-    status_Hall[1]=1; 
-    }}
+    status_Hall |= (1<<0);
+    }
   }
 
 
@@ -195,7 +144,8 @@ float acquire_buss(){
   }
 
   // Converter para graus e guardar na variável apropriada
-  rumo_real = rumo_real * 180/M_PI; 
+  rumo_real = rumo_real * 180/M_PI;
+  erro_rumo=rumo_ideal-rumo_real;
 
 }
 
@@ -252,7 +202,7 @@ void setup() {
   sci();
 
   //variáveis de estado
-  current_state = 1;
+  current_state = 0;
   previous_state = 0;
   waypoint_count = 0;
 
@@ -260,9 +210,9 @@ void setup() {
   //wind= B0; //se bombordo
   wind= B1; //se boreste
 
-  lat2=lat2_lon2_desvio[0];
-  lon2=lat2_lon2_desvio[1];
-  desvio2=lat2_lon2_desvio[2];
+  lat_waypoint=lat2_lon2_desvio[0];
+  long_waypoint=lat2_lon2_desvio[1];
+  desvio_waypoint=lat2_lon2_desvio[2];
   
   Serial.println("Esperando por Dados do Modulo...");
   serial1.begin(9600);
@@ -329,174 +279,175 @@ void setup() {
 
 void loop() {
 
-switch (current_state){
+  switch (current_state){
   
-  case 0: //troca_waypoint
+    case 0: //à favor
 
-  
-  waypoint_count = waypoint_count + 1;
-  lat2=lat2_lon2_desvio[waypoint_count*3];
-  lon2=lat2_lon2_desvio[waypoint_count*3+1];
-  desvio2=lat2_lon2_desvio[waypoint_count*3+2];
+      //manter leme
 
-  current_state=1; //ir para manter_rumo_BE
-  previous_state=0;
-  
-  break;
+      if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110){
+        current_state=3; //ir para contra por BB
+        break;
 
-  
-  case 1: //manter_rumo
-  //manter servo parado na posição
-  stable = true;
-  //pode inserir um timer pra não deixar o código preso nesse loop
-  while (stable) {
+      }
+      else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
+        current_state=4; //ir para contra por BE
+        break;
+      }
+      else if(erro_rumo > lambda_rumo){
+        current_state=1; //ir para ajeitar BB
+        break;
+      }
+      else if(erro_rumo < (-1)*lambda_rumo){
+        current_state=4; //ir para ajeitar BE
+      }
+      break;
 
-    switch (wind){
-    
-    case 0: //vento de bombordo
-    if ( status_Hall == {0,1,0,0}){
-      current_state=2; //ir para arribar
-      stable = false;
+    case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
+
+      //leme p/ BB
+
+      if(erro_rumo < lambda_rumo){
+        current_state=0; //ir para à favor
+      }
+      break;
+
+    case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
+
+      //manter leme
+
+      if(erro_rumo > (-1)*lambda_rumo){
+        current_state=0; //ir para à favor
+      }
+      break;
+
+    case 3: //contra por BB------------------------------------------------------------------------------------------------
       
-      }
-
-    else if ( status_Hall == {1,0,0,0}){
-      current_state=2; //ir para orçar
-      stable = false;
-      }
-    break;
-
-    case 1: //vento de boreste
-    if ( status_Hall == {0,0,1,0}){
-      current_state=2; //ir para arribar
-      stable = false;
+      //manter leme
       
+      if(status_Hall==B0100 || status_Hall==B0110){
+        current_state=7; //ir para arribar_1 BB
+        break;
+
       }
-
-    else if ( status_Hall == {0,0,0,1}){
-      current_state=2; //ir para orçar
-      stable = false;
+      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
+        current_state=11; //ir para Jib BB
+        break;
       }
-    break;
-  }
-    stable=check_rumo();
-
-    }
-  
-  previous_state=1;
-  break;
-
-  
-  case 2: //arribar
-  stable = false;
-
-  //talvez colocar algum timer pra tirar o código desse loop.
-  while (!stable){
-    
-
-    switch (wind){
-    
-    case 0: //vento de bombordo
-    if (status_Hall != {1,1,0,0}){
-    //mover leme para bombordo
+      else if(erro_rumo > 0 && status_Hall==B1000){//rumo_ideal está para BB e pode orçar
+        current_state=9; //ir para orçar BB
+        break;
       }
-    
-    else{
-      stable=true;
-    }
-    
-    }
-    break;
-
-    case 1: //vento de boreste
-    if (status_Hall != {0,0,1,1}){
-    //mover leme para boreste
+      else if(erro_rumo < 0) {//rumo_ideal está para BE
+        current_state=5; //ir para arribar_2 BB
       }
-    
-    else{
-      stable=true;
-    }
-    break;
+      break;
 
-    }
-  previous_state=2;
-  break;
-  
-  case 3: //orçar
-  stable = false;
-  //talvez colocar algum timer pra tirar o código desse loop.
-  while (!stable){
+    case 4: //contra por BB------------------------------------------------------------------------------------------------
     
+      //manter leme
 
-    switch (wind){
-    
-    case 0: //vento de bombordo
-    if (status_Hall != {1,1,0,0}){
-    //mover leme para boreste
-    
+      if(status_Hall==B0010 || status_Hall==B0110){
+        current_state=8; //ir para arribar_1 BE
+        break;
       }
-    
-    else{
-      stable=true;
-    }
-    
-    }
-    break;
-
-    case 1: //vento de boreste
-    if (status_Hall != {0,0,1,1}){
-    //mover leme para bombordo
-    
+      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
+        current_state=12; //ir para Jib BE
+        break;
       }
+      else if(erro_rumo < 0 && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
+        current_state=10; //ir para orçar BE
+        break;
+      }
+      else if(erro_rumo > 0) {//rumo_ideal está para BB
+        current_state=6; //ir para arribar_2 BE
+      }
+      break;
+
+    case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
     
-    else{
-      stable=true;
-    }
-    break;
+      //leme p/ BE
 
-    }
-  current_state=1; //voltar para manter_rumo
-  previous_state=3;
-  break;
+      if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+        current_state=3; //ir para contra por BB
+      }
+      break;
 
-  
-  case 4: //ajeitar_rumo
-  
-
-  previous_state=4;
-  break;
-
-  
-  case 5: //cambar
-
-  bool stable = false;
-
-  while (!stable){
+    case 6: //arribar_2 BE-------------------------------------------------------------------------------------------------
     
+      //leme p/ BB
 
-    //mover incisivamente leme para o lado oposto do vento
+      if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+        current_state=4; //ir para contra por BE
+      }
+      break;
 
-    stable=check_rumo();
-    //função_move_servo(delta_rumo,case_rumo)
+    case 7: //arribar_1 BB-------------------------------------------------------------------------------------------------
     
-  }
+      //leme p/ BE
 
+      if(status_Hall==B0000 || status_Hall==B1000 || status_Hall==B1100 ) {
+        current_state=3; //ir para contra por BB
+      }
+      break;
+    
+    case 8: //arribar_1 BE-------------------------------------------------------------------------------------------------
+    
+      //leme p/ BB
 
-  wind = ~wind; //inverte de onde vem o vento
-  current_state=1; //retorna para manter_rumo
-  previous_state=5;
-  break;
-  
-  }
-   
-}
+      if(status_Hall==B0000 || status_Hall==B0001 || status_Hall==B0011 ) {
+        current_state=4; //ir para contra por BE
+      }
+      break;
+
+    case 9: //orçar BB-----------------------------------------------------------------------------------------------------
+    
+      //leme p/ BB
+
+      if(status_Hall==B1100 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+        current_state=3; //ir para contra por BB
+      }
+      break;
+
+    case 10: //orçar BE----------------------------------------------------------------------------------------------------
+    
+      //leme p/ BE
+
+      if(status_Hall==B0011 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+        current_state=4; //ir para contra por BE
+      }
+      break;
+
+    case 11: //Jib BB------------------------------------------------------------------------------------------------------
+    
+      //leme p/ BE
+
+      if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo){//<<<<<<<<<<<<<adicionar condição de 10s
+        current_state=4; //ir para contra por BE
+      }
+      break;
+
+    case 12: //orçar BE----------------------------------------------------------------------------------------------------
+    
+      //leme p/ BB
+
+      if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo) {//<<<<<<<<<<<<<adicionar condição de 10s
+        current_state=3; //ir para contra por BB
+      }
+      break;
+
+    case 13: //espera------------------------------------------------------------------------------------------------------
+    
+      //leme ao centro
+      //<<<<<<<<<<<<<adicionar condição de 10s
+      break;
 
 ISR(TIMER0_COMPA_vct){
   acquire_Hall();
   acquire_buss();
   contador_gps+=1;
-  if (contador_gps == 600){
+  if (contador_gps == 1200){
     acquire_GPS();
-
-  }
+    contador_gps=0;
+  } 
 }
