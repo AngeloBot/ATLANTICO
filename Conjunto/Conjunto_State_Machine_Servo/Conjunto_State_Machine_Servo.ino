@@ -371,6 +371,11 @@ void loop() {
       }
       break;
 
+      else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010) {
+        current_state=4; //ir para contra por BE
+      }
+      break;
+
     case 4: //contra por BE------------------------------------------------------------------------------------------------
     
       //manter leme
@@ -391,6 +396,10 @@ void loop() {
       }
       else if(erro_rumo > 0) {//rumo_ideal está para BB
         current_state=6; //ir para arribar_2 BE
+      }
+      break;
+      else if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0100) {
+        current_state=3; //ir para contra por BB
       }
       break;
 
