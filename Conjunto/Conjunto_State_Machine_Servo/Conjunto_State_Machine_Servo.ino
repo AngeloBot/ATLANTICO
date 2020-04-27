@@ -4,7 +4,6 @@
 #include <TinyGPS.h>
 #include <Servo.h>
 
-
 HMC5883L compass;
 
 Servo servo; 
@@ -302,7 +301,7 @@ void loop() {
 
   switch (current_state){
   
-    case 0: //à favor
+    case 0: //à favor-------------------------------------------------------------------------------------------------------
 
       pos=pos_zero
       servo.write(pos);

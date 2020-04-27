@@ -1,0 +1,18 @@
+switch(estado_atual){
+
+
+    case 0: //estado 0
+
+        set_do_output_do_estado_0();
+
+        if (condições para mudar para o estado X são verificadas){
+
+            estado_atual=X;
+        }
+        break;
+.
+.
+.
+
+
+
