@@ -315,11 +315,11 @@ void loop() {
         current_state=4; //ir para contra por BE
         break;
       }
-      else if(erro_rumo > 0{
+      else if(erro_rumo > 0 && status_Hall==B0000){
         current_state=1; //ir para ajeitar BB
         break;
       }
-      else if(erro_rumo < 0){
+      else if(erro_rumo < 0 && status_Hall==B0000){
         current_state=2; //ir para ajeitar BE
       }
       break;
@@ -357,7 +357,7 @@ void loop() {
         break;
 
       }
-      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
+      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B1100){
         current_state=11; //ir para Jibe BB
         break;
       }
@@ -375,6 +375,11 @@ void loop() {
       }
       break;
 
+      else if(status_Hall==B0000){
+        current_state=0; //ir para à favor
+
+      }
+
     case 4: //contra por BE------------------------------------------------------------------------------------------------
     
       //manter leme
@@ -385,7 +390,7 @@ void loop() {
         current_state=8; //ir para arribar_1 BE
         break;
       }
-      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
+      else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)&& status_Hall==B0011){
         current_state=12; //ir para Jibe BE
         break;
       }
@@ -402,11 +407,15 @@ void loop() {
       }
       break;
 
+      else if(status_Hall==B000){
+        current_state=0; //ir para à favor
+
+      }
     case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
     
       //leme p/ BE
 
-      if(status_Hall==B0000 || erro_rumo==0) {
+      if(status_Hall==B1000 || status_Hall==B1100 || erro_rumo==0) {
         current_state=3; //ir para contra por BB
       }
       break;
@@ -415,7 +424,7 @@ void loop() {
     
       //leme p/ BB
 
-      if(status_Hall==B0000 || erro_rumo==0) {
+      if(status_Hall==B0001 || status_Hall==B0011 || erro_rumo==0) {
         current_state=4; //ir para contra por BE
       }
       break;
@@ -424,25 +433,29 @@ void loop() {
     
       //leme p/ BE
 
-      if(status_Hall==B0000 || status_Hall==B1000 || status_Hall==B1100 ) {
+      if(status_Hall==B0110 || status_Hall==B0100) {
         current_state=3; //ir para contra por BB
       }
       break;
     
+      //ADICIONAR CONDIÇÃO DE TIMER PARA O IR PARA O ESTADO 13
+
     case 8: //arribar_1 BE-------------------------------------------------------------------------------------------------
     
       //leme p/ BB
 
-      if(status_Hall==B0000 || status_Hall==B0001 || status_Hall==B0011 ) {
+      if(status_Hall==B0110 || status_Hall==B0010) {
         current_state=4; //ir para contra por BE
       }
       break;
+
+      //ADICIONAR CONDIÇÃO DE TIMER PARA O IR PARA O ESTADO 13
 
     case 9: //orçar BB-----------------------------------------------------------------------------------------------------
     
       //leme p/ BB
 
-      if(status_Hall==B1100 || erro_rumo==0) {
+      if(!(status_Hall==B0000 || status_Hall==B1000 || status_Hall==B0010) || erro_rumo==0) {
         current_state=3; //ir para contra por BB
       }
       break;
@@ -453,39 +466,43 @@ void loop() {
       pos=pos_centro;
       servo.write(pos);
 
-      if(status_Hall==B0011 || erro_rumo==0 {
+      if(!(status_Hall==B0000 || status_Hall==B0100 || status_Hall==B0001) || erro_rumo==0 {
         current_state=4; //ir para contra por BE
       }
       break;
 
-    case 11: //Jib BB------------------------------------------------------------------------------------------------------
+    case 11: //Jibe BB------------------------------------------------------------------------------------------------------
     
       //leme p/ BE
       pos=pos_centro+acres_BE;
       servo.write(pos);
 
-      if(erro_rumo==0){//<<<<<<<<<<<<<adicionar condição de 10s
+      if(erro_rumo==0 || status_Hall==B0011 || status_Hall==B0001){
         current_state=4; //ir para contra por BE
       }
       break;
 
-    case 12: //orçar BE----------------------------------------------------------------------------------------------------
+      //ADICIONAR CONDIÇÃO DE TIMER PARA O IR PARA O ESTADO 13
+
+    case 12: //Jibe BE----------------------------------------------------------------------------------------------------
     
       //leme p/ BB
       pos=pos_centro+acres_BB;
       servo.write(pos);
 
-      if(erro_rumo==0) {//<<<<<<<<<<<<<adicionar condição de 10s
+      if(erro_rumo==0 || status_Hall==B1000 || status_Hall==B1100) {
         current_state=3; //ir para contra por BB
       }
       break;
+
+      //ADICIONAR CONDIÇÃO DE TIMER PARA O IR PARA O ESTADO 13
 
     case 13: //espera------------------------------------------------------------------------------------------------------
     
       //leme ao centro
       pos=pos_centro;
       servo.write(pos);
-      //<<<<<<<<<<<<<adicionar condição de 10s
+      //ADICIONAR CONDIÇÃO DE TIMER PARA O IR PARA O ESTADO 0
       break;
 
 ISR(TIMER0_COMPA_vct){
