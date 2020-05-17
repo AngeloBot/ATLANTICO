@@ -6,7 +6,7 @@ static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
 
 void setup(){
   
-  Serial.begin(9600);
+  Serial.begin(115200);
   }
 
 void loop(){
