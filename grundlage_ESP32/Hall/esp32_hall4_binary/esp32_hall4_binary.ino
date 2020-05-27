@@ -13,7 +13,7 @@ int pinFRIGHT = 15;
 int LpinLEFT = 27;
 int LpinRIGHT = 25;
 int LpinFLEFT = 12;
-int LpinFRIGHT = 2;
+int LpinFRIGHT = 4;
 
 int status_Hall =B0;
 int maxHallSignal=10;
