@@ -1,185 +1,230 @@
-#include <TinyGPS++.h>
-#include <HardwareSerial.h>
 #include <Wire.h>
 #include <HMC5883L.h>
 
-hw_timer_t * timer0 = NULL;
-hw_timer_t * timer1 = NULL;
+#include <TinyGPS++.h> 
+#include <HardwareSerial.h> 
 
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
-volatile int hall_buss_counter=0;
+HMC5883L compass;
+float rumo_real;
 
-int LED_BUILTIN=2;
+TinyGPSPlus gps;
+HardwareSerial SerialGPS(1);//RX1 e TX1
 
-volatile int flag=B0;
+double courseToLondon;
+unsigned long distanceKmToLondon;
+double lat_boat;
+double lon_boat;
+static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
 
-volatile int statusLEFT = 0;
-volatile int statusRIGHT = 0;
-volatile int statusFLEFT = 0;
-volatile int statusFRIGHT = 0;
+hw_timer_t * timer0 = NULL; //hall
+hw_timer_t * timer1 = NULL; //gps
+hw_timer_t * timer2 = NULL; //buss
 
+volatile int flag_hall=0;
+volatile int flag_gps=0;
+volatile int flag_buss=0;
+
+volatile int counter0=0; //hall
+volatile int counter1=0; //gps
+volatile int counter2=0; //buss
+
+int LED_Hall = 2;
+int LED_GPS=4;
+int LED_Buss=5;
+
+//variáveis para gravar leitura analógica dos pins dos sensores hall
+int statusLEFT = 0;
+int statusRIGHT = 0;
+int statusFLEFT = 0;
+int statusFRIGHT = 0;
 //pin para input proveniente sensores
 int pinLEFT = 14;
 int pinRIGHT = 26; 
 int pinFLEFT = 13;
 int pinFRIGHT = 15;
 
-//pin para output nos leds
-int LpinLEFT = 27;
-int LpinRIGHT = 25;
-int LpinFLEFT = 12;
-int LpinFRIGHT = 4;
-
-volatile int status_Hall =B0;
+//variável que resume estado de todos os hall
+int status_Hall =B0;
+//variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
 int maxHallSignal=10;
 
-HMC5883L compass; //SDA=>21 e SCL=>22
-volatile float rumo_real;
-
-TinyGPSPlus gps;
-volatile int gps_counter=0;
-
-HardwareSerial SerialGPS(1); //usar portas RX2 e TX2 (GPIO16, GPIO17)
-volatile unsigned long distanceKmToLondon;
-volatile unsigned long courseToLondon;
-volatile unsigned long lat_boat;
-volatile unsigned long lon_boat;
-
-void acquire_GPS(){
-
-    static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;  
-    int count=0;
-    
-    while (SerialGPS.available() > 0 || count<5) {
-        gps.encode(SerialGPS.read());
-        count++;
-    }
-    
-    if (gps.satellites.value() > 4) {
-
-    lat_boat=gps.location.lat();
-    lon_boat=gps.location.lng();
-    distanceKmToLondon =(unsigned long)TinyGPSPlus::distanceBetween(lat_boat,lon_boat,LONDON_LAT, LONDON_LON) / 1000;
-    courseToLondon =TinyGPSPlus::courseTo(lat_boat,lon_boat,LONDON_LAT, LONDON_LON);
-    }
-}
-void acquire_Hall(){
-
-    statusRIGHT = analogRead(pinRIGHT);
-    statusLEFT = analogRead(pinLEFT);
-    statusFRIGHT = analogRead(pinFRIGHT);
-    statusFLEFT = analogRead(pinFLEFT);
-
-    if ( statusFRIGHT < maxHallSignal){status_Hall |= 1;}else{status_Hall &= ~1;}
-    if ( statusRIGHT < maxHallSignal){status_Hall |= (1<<1);}else{status_Hall &= ~(1<<1);}
-    if ( statusLEFT < maxHallSignal){status_Hall |= (1<<2);}else{status_Hall &= ~(1<<2);}
-    if ( statusFLEFT < maxHallSignal){status_Hall |= (1<<3);}else{status_Hall &= ~(1<<3);}
-}
-
-void acquire_Buss(){
-
-    Vector norm = compass.readNormalize();
-    // Calculate heading
-    rumo_real = atan2(norm.YAxis, norm.XAxis);
-    // Set declination angle on your location and fix heading
-    // You can find your declination on: http://magnetic-declination.com/
-    // (+) Positive or (-) for negative
-    // For Bytom / Poland declination angle is 4'26E (positive)
-    // For Barueri / Brazil declination angle is 21'22W(negative)
-    // For Santo Amaro / Brazil declination angle is 21'23W(negative)
-    // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
-    // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-    float declinationAngle = (-21.0 - (25.0 / 60.0)) / (180 / M_PI);
-    rumo_real += declinationAngle;
-    // Correct for heading < 0deg and heading > 360deg
-    if (rumo_real < 0){rumo_real += 2 * PI;}
-    if (rumo_real > 2 * PI){rumo_real -= 2 * PI;}
-    // Converter para graus e guardar na variável apropriada
-    rumo_real = rumo_real * 180/M_PI;
-}
-
 void IRAM_ATTR onTimer0(){
+  
+    if(counter0==0){
+        digitalWrite(LED_Hall, HIGH);
+        }
+    else{
+        digitalWrite(LED_Hall, LOW);
+        }
 
-    hall_buss_counter++;   
+    counter0=~counter0;
+    flag_hall++;
+
 }
 
 void IRAM_ATTR onTimer1(){
+  
 
-   gps_counter++;
+    if(counter1==0){
+        digitalWrite(LED_GPS, HIGH);
+        }
+    else{
+        digitalWrite(LED_GPS, LOW);
+        }
+
+    counter1=~counter1;
+    flag_gps++;
+
 }
-void setup(){
 
+void IRAM_ATTR onTimer2(){
+  
+
+    if(counter2==0){
+        digitalWrite(LED_Buss, HIGH);
+        }
+    else{
+        digitalWrite(LED_Buss, LOW);
+        }
+
+    counter2=~counter2;
+    flag_buss++;
+
+}
+
+void setup() {
     Serial.begin(115200);
-    pinMode (LED_BUILTIN, OUTPUT);
-    SerialGPS.begin(9600, SERIAL_8N1, 16, 17); //setup da comunicação serial entre ESP32 e GPS
+    pinMode (LED_Hall, OUTPUT);
+    pinMode (LED_GPS, OUTPUT);
+    pinMode (LED_Buss, OUTPUT);
 
-    Serial.println("start timer ");
-    timer0 = timerBegin(0, 20000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 20000 -> 250000 ns = 250 us, countUp
+    SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    
+    Serial.println("start timers ");
+    timer0 = timerBegin(0, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer0, &onTimer0, true); // edge (not level) triggered 
-    timerAlarmWrite(timer0, 1000, true); // 1000 * 250 us = 0.25 s (4Hz), autoreload true
+    timerAlarmWrite(timer0, 1000, true); // 1000 * 100 us = 0.1 s (10 Hz), autoreload true
     timerAlarmEnable(timer0); // enable
 
-    timer1 = timerBegin(1, 40000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 40000 -> 500000 ns = 500 us, countUp
+    timer1 = timerBegin(1, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer1, &onTimer1, true); // edge (not level) triggered 
-    timerAlarmWrite(timer1, 20000, true); // 20000 * 500 us = 10 s (0.1Hz), autoreload true
+    timerAlarmWrite(timer1, 100000, true); // 100000 * 100 us = 10 s (0.1Hz), autoreload true
     timerAlarmEnable(timer1); // enable
 
-    Serial.println("Initialize HMC5883L");
-    while (!compass.begin()){
-        Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-        delay(500);
+    timer2 = timerBegin(2, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
+    timerAttachInterrupt(timer2, &onTimer2, true); // edge (not level) triggered 
+    timerAlarmWrite(timer2, 2500, true); // 2500 * 100 us = 0.25 s (4Hz), autoreload true
+    timerAlarmEnable(timer2); // enable
+
+    if (!compass.begin()){
+      Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);
+
     // Set measurement mode
     compass.setMeasurementMode(HMC5883L_CONTINOUS);
+
     // Set data rate
     compass.setDataRate(HMC5883L_DATARATE_30HZ);
+
     // Set number of samples averaged
     compass.setSamples(HMC5883L_SAMPLES_8);
+
     // Set calibration offset. See HMC5883L_calibration.ino
     compass.setOffset(99, -41);
-
-    //RIGHT
-    pinMode(pinRIGHT, INPUT);
-    pinMode(LpinRIGHT, OUTPUT);
-    //LEFT
-    pinMode(pinLEFT, INPUT);
-    pinMode(LpinLEFT, OUTPUT);
-    //FLEFT
-    pinMode(pinFLEFT, INPUT);
-    pinMode(LpinFLEFT, OUTPUT);
-    //FRIGHT
-    pinMode(pinFRIGHT, INPUT);
-    pinMode(LpinFRIGHT, OUTPUT);
-
 }
 
-void loop(){
+void loop() {
+    if (flag_hall>0) {
 
-    if(gps_counter>0){
-      acquire_GPS();
-      gps_counter--;  
+        statusRIGHT = analogRead(pinRIGHT);
+        statusLEFT = analogRead(pinLEFT);
+        statusFRIGHT = analogRead(pinFRIGHT);
+        statusFLEFT = analogRead(pinFLEFT);
+
+        if ( statusFRIGHT < maxHallSignal){
+          status_Hall |= 1;
+        }
+        else{
+          status_Hall &= ~1;
+        }
+        if ( statusRIGHT < maxHallSignal){
+          status_Hall |= (1<<1);
+        }
+        else{
+          status_Hall &= ~(1<<1);
+        }
+        if ( statusLEFT < maxHallSignal){
+          status_Hall |= (1<<2);
+        }
+        else{
+          status_Hall &= ~(1<<2);
+        }
+        if ( statusFLEFT < maxHallSignal){
+          status_Hall |= (1<<3);
+        }
+        else{
+          status_Hall &= ~(1<<3);
+        }
+        
+        Serial.println(status_Hall);
+        flag_hall--;  
+        }
+    
+    if(flag_buss>0){
+        Vector norm = compass.readNormalize();
+
+        // Calculate heading
+        rumo_real = atan2(norm.YAxis, norm.XAxis);
+        // Set declination angle on your location and fix heading
+        // You can find your declination on: http://magnetic-declination.com/
+        // (+) Positive or (-) for negative
+        // For Bytom / Poland declination angle is 4'26E (positive)
+        // For Barueri / Brazil declination angle is 21'22W(negative)
+        // For Santo Amaro / Brazil declination angle is 21'23W(negative)
+        // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
+        // Formula: (deg + (min / 60.0)) / (180 / M_PI);
+        float declinationAngle = (-21.0 - (25.0 / 60.0)) / (180 / M_PI);
+        rumo_real += declinationAngle;
+        
+        // Correct for heading < 0deg and heading > 360deg
+        if (rumo_real < 0){
+            rumo_real += 2 * PI;
+        }
+        if (rumo_real > 2 * PI){
+            rumo_real -= 2 * PI;
+        }
+        // Converter para graus e guardar na variável apropriada
+        rumo_real = rumo_real * 180/M_PI;
+        flag_buss--;
+        Serial.println(rumo_real);
     }
-    if(hall_buss_counter>0){
-      acquire_Buss();
-      acquire_Hall();
-      hall_buss_counter--;
+
+    if(flag_gps>0) {
+
+        while (SerialGPS.available() > 0) {
+    gps.encode(SerialGPS.read());
+  }
+        
+        Serial.print("GPS= ");Serial.println(gps.satellites.value());
+        
+        if (gps.satellites.value() > 4) {
+        
+            lat_boat=gps.location.lat();
+            lon_boat=gps.location.lng();
+            Serial.print("LAT=");  Serial.println(lat_boat, 6);
+            Serial.print("LONG="); Serial.println(lon_boat, 6);
+            
+
+            distanceKmToLondon =(unsigned long)TinyGPSPlus::distanceBetween(lat_boat,lon_boat,LONDON_LAT,LONDON_LON) / 1000;
+            Serial.println(distanceKmToLondon);
+
+            courseToLondon =TinyGPSPlus::courseTo(lat_boat,lon_boat,LONDON_LAT,LONDON_LON);
+            Serial.println(courseToLondon);
+            
+        }
+        flag_gps--;
     }
-    //HALL
-    if ( statusFRIGHT < maxHallSignal){digitalWrite(LpinFRIGHT, HIGH);}else{digitalWrite(LpinFRIGHT, LOW);}
-    if ( statusRIGHT < maxHallSignal){digitalWrite(LpinRIGHT, HIGH);}else{digitalWrite(LpinRIGHT, LOW);}
-    if ( statusLEFT < maxHallSignal){digitalWrite(LpinLEFT, HIGH);}else{digitalWrite(LpinLEFT, LOW);}
-    if ( statusFLEFT < maxHallSignal){digitalWrite(LpinFLEFT, HIGH);}else{digitalWrite(LpinFLEFT, LOW);}
-    Serial.print("HALL=");Serial.println(status_Hall);
-
-    //GPS
-    Serial.print("LAT=");  Serial.println(lat_boat, 6);
-    Serial.print("LONG="); Serial.println(lon_boat, 6);
-    Serial.print("DIST="); Serial.println(distanceKmToLondon);
-    Serial.print("COURSE="); Serial.println(courseToLondon);
-
-    //BUSS
-     Serial.print("BUSS=");Serial.println(rumo_real);
 }
