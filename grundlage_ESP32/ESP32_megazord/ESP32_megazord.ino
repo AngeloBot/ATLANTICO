@@ -4,15 +4,26 @@
 #include <TinyGPS++.h> 
 #include <HardwareSerial.h> 
 
+#include <ESP32_Servo.h>
+
+//configuração servo
+Servo servo;
+int pos=0;
+#define pos_i 90 //define posição inicial
+#define servoPin 18 //define pin do servo
+
+//variáveis de estado da máquina
+int current_state = 0;
+int previous_state = 0;
+
 //erro de rumo
-int zero_margin_rumo=10; //poço do zero de rumo
-int lambda_rumo= 10; //poço de erro em relação ao rumo ideal
-int lambda_jib=5; //poço de erro de rumo em relação ao rumo ideal ao dar jibe
+#define zero_margin_rumo 10 //poço do zero de rumo
+#define lambda_rumo 10 //poço de erro em relação ao rumo ideal
+#define lambda_jibe 5 //poço de erro de rumo em relação ao rumo ideal ao dar jibe
 
 //variáveis para transição para o estado 13
 double deltat = 10000; //em ms
-double timer_13_i=0;
-double timer_13_f=0;
+double timer_13=0;
 int flag_13=0;
 
 HMC5883L compass;
@@ -30,6 +41,7 @@ float rumo_ideal = 0;
 float lat_barco, long_barco;
 float lat_waypoint, long_waypoint;
 float desvio_waypoint;
+#define waypoint_radius 100 //em metros
 
 //lista de waypoints com respectivos desvios magnéticos
 float lat_long_desvio_waypoint[6] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};
@@ -51,9 +63,9 @@ volatile int counter1=0; //gps
 volatile int counter2=0; //buss
 //=================================================================================
 
-int LED_Hall = 2;
-int LED_GPS=4;
-int LED_Buss=5;
+#define LED_Hall 2
+#define LED_GPS 4
+#define LED_Buss 5
 
 //variáveis para gravar leitura analógica dos pins dos sensores hall
 int statusLEFT = 0;
@@ -61,15 +73,15 @@ int statusRIGHT = 0;
 int statusFLEFT = 0;
 int statusFRIGHT = 0;
 //pin para input proveniente sensores
-int pinLEFT = 14;
-int pinRIGHT = 26; 
-int pinFLEFT = 13;
-int pinFRIGHT = 15;
+#define pinLEFT 14
+#define pinRIGHT 26 
+#define pinFLEFT 13
+#define pinFRIGHT 15
 
 //variável que resume estado de todos os hall
 int status_Hall =B0000;
 //variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
-int maxHallSignal=10;
+#define maxHallSignal 10
 
 void IRAM_ATTR onTimer0(){
   
@@ -146,7 +158,7 @@ void acquire_hall(){
         status_Hall &= ~(1<<3);
     }
     
-    Serial.println(status_Hall);
+    Serial.print("HALL=");Serial.println(status_Hall);
     flag_hall--;
 
 }
@@ -163,16 +175,17 @@ void acquire_GPS(){
     
     if (gps.satellites.value() > 4) {
     
-        lat_boat=gps.location.lat();
-        lon_boat=gps.location.lng();
-        Serial.print("LAT=");  Serial.println(lat_boat, 6);
-        Serial.print("LONG="); Serial.println(lon_boat, 6);
+        lat_barco=gps.location.lat();
+        long_barco=gps.location.lng();
+        Serial.print("LAT=");  Serial.println(lat_barco, 6);
+        Serial.print("LONG="); Serial.println(long_barco, 6);
         
 
-        dist_waypoint=(unsigned long)TinyGPSPlus::distanceBetween(lat_barco,long_barco,lat_waypoint,long_barco) / 1000;
+        dist_waypoint=(unsigned long)TinyGPSPlus::distanceBetween(lat_barco,long_barco,lat_waypoint,long_barco); //m
+        
         Serial.print("Dist ");Serial.println(dist_waypoint);
 
-        if (waypoint_radius > ){
+        if (waypoint_radius > dist_waypoint){
             waypoint_count += 1;
             lat_waypoint=lat_long_desvio_waypoint[waypoint_count*3];
             long_waypoint=lat_long_desvio_waypoint[waypoint_count*3+1];
@@ -185,7 +198,7 @@ void acquire_GPS(){
 }
 void acquire_buss(){
 
-Vector norm = compass.readNormalize();
+    Vector norm = compass.readNormalize();
 
     // Calculate heading
     rumo_real = atan2(norm.YAxis, norm.XAxis);
@@ -225,6 +238,9 @@ void setup() {
 
     SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
     
+    servo.attach(servoPin);
+    servo.write(90);
+
     //variáveis de estado
     current_state = 0;
     previous_state = 0;
@@ -270,8 +286,10 @@ void setup() {
 }
 
 void loop() {
+    Serial.print("STATE= "); Serial.println(current_state);
+
     if (flag_hall>0) {
-        acquire_Hall();    
+        acquire_hall();    
     }
     if(flag_buss>0){
         acquire_buss();
@@ -285,6 +303,7 @@ void loop() {
         case 0: //à favor
 
             //manter leme
+            servo.write(90);
 
             if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110){
                 current_state=3; //ir para contra por BB
@@ -307,6 +326,7 @@ void loop() {
         case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
 
             //leme p/ BB
+            servo.write(0);
 
             if(erro_rumo < lambda_rumo){
                 current_state=0; //ir para à favor
@@ -315,7 +335,8 @@ void loop() {
 
         case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
 
-            //manter leme
+            //leme p/ BE
+            servo.write(180);
 
             if(erro_rumo > (-1)*lambda_rumo){
                 current_state=0; //ir para à favor
@@ -325,6 +346,7 @@ void loop() {
         case 3: //contra por BB------------------------------------------------------------------------------------------------
         
             //manter leme
+            servo.write(90);
 
             if(status_Hall==B0100 || status_Hall==B0110){
                 flag_13=1;
@@ -349,6 +371,7 @@ void loop() {
         case 4: //contra por BB------------------------------------------------------------------------------------------------
         
             //manter leme
+            servo.write(90);
 
             if(status_Hall==B0010 || status_Hall==B0110){
                 flag_13=1;
@@ -372,6 +395,7 @@ void loop() {
         case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
         
             //leme p/ BE
+            servo.write(180);
 
             if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
                 current_state=3; //ir para contra por BB
@@ -381,6 +405,7 @@ void loop() {
         case 6: //arribar_2 BE-------------------------------------------------------------------------------------------------
         
             //leme p/ BB
+            servo.write(0);
 
             if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
                 current_state=4; //ir para contra por BE
@@ -390,15 +415,16 @@ void loop() {
         case 7: //arribar_1 BB-------------------------------------------------------------------------------------------------
 
             if (flag_13==1){
-                timer_13=milis();
+                timer_13=millis();
                 flag_13=0;
             }
             //leme p/ BE
+            servo.write(180);
 
             if(status_Hall==B0000 || status_Hall==B1000 || status_Hall==B1100 ) {
                 current_state=3; //ir para contra por BB
             }
-            else if(milis()-timer_13 > deltat ){
+            else if(millis()-timer_13 > deltat ){
 
                 flag_13=1;
                 current_state=13; //ir para espera
@@ -409,16 +435,17 @@ void loop() {
         case 8: //arribar_1 BE-------------------------------------------------------------------------------------------------
 
             if (flag_13==1){
-                timer_13=milis();
+                timer_13=millis();
                 flag_13=0;
             }
             //leme p/ BB
+            servo.write(0);
 
             if(status_Hall==B0000 || status_Hall==B0001 || status_Hall==B0011 ) {
                 current_state=4; //ir para contra por BE
             }
 
-            else if(milis()-timer_13 > deltat ){
+            else if(millis()-timer_13 > deltat ){
 
                 flag_13=1;
                 current_state=13; //ir para espera
@@ -428,6 +455,7 @@ void loop() {
         case 9: //orçar BB-----------------------------------------------------------------------------------------------------
         
             //leme p/ BB
+            servo.write(0);
 
             if(status_Hall==B1100 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
                 current_state=3; //ir para contra por BB
@@ -437,6 +465,7 @@ void loop() {
         case 10: //orçar BE----------------------------------------------------------------------------------------------------
         
             //leme p/ BE
+            servo.write(180);
 
             if(status_Hall==B0011 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
                 current_state=4; //ir para contra por BE
@@ -446,16 +475,17 @@ void loop() {
         case 11: //Jibe BB------------------------------------------------------------------------------------------------------
 
             if (flag_13==1){
-                timer_13=milis();
+                timer_13=millis();
                 flag_13=0;
             }
             //leme p/ BE
+            servo.write(180);
 
             if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo){//<<<<<<<<<<<<<adicionar condição de 10s
                 current_state=4; //ir para contra por BE
             }
 
-            else if(milis()-timer_13 > deltat ){
+            else if(millis()-timer_13 > deltat ){
 
                 flag_13=1;
                 current_state=13; //ir para espera
@@ -465,16 +495,17 @@ void loop() {
         case 12: //Jibe BE---------------------------------------------------------------------------------------------------
 
             if (flag_13==1){
-                timer_13=milis();
+                timer_13=millis();
                 flag_13=0;
             }
             //leme p/ BB
+            servo.write(0);
 
             if(erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo) {
                 current_state=3; //ir para contra por BB
             }
 
-            else if(milis()-timer_13 > deltat ){
+            else if(millis()-timer_13 > deltat ){
 
                 flag_13=1;
                 current_state=13; //ir para espera
@@ -484,16 +515,19 @@ void loop() {
 
         case 13: //espera------------------------------------------------------------------------------------------------------
         
-        //leme ao centro
+            //leme ao centro
+            servo.write(90);
+
             if (flag_13==1)
             {
-                timer_13=milis();
+                timer_13=millis();
                 flag_13=0;
             }
 
 
-            if(milis()-timer_13 > deltat ){
+            if(millis()-timer_13 > deltat ){
                 current_state=0; //ir para à favor
             }
         break;
+    }
 }
