@@ -31,20 +31,22 @@ HMC5883L compass;
 //variáveis bússola================================================================
 float rumo_real;
 float erro_rumo=0;
+#define BUSS_X_OFFSET 262
+#define BUSS_Y_OFFSET -171
 //=================================================================================
 
 TinyGPSPlus gps;
 HardwareSerial SerialGPS(1);//RX1 e TX1
 
 //variáveis GPS====================================================================
-float rumo_ideal = 0;
+double rumo_ideal = 0;
 float lat_barco, long_barco;
 float lat_waypoint, long_waypoint;
 float desvio_waypoint;
 #define waypoint_radius 100 //em metros
 
 //lista de waypoints com respectivos desvios magnéticos
-float lat_long_desvio_waypoint[6] = {-23.578426, -46.744687, -21.32, -23580636, -46.743040, -21.32};
+float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.24, -23.554985, -46.876259, -21.24};
 volatile int waypoint_count = 0;
 
 //=================================================================================
@@ -185,6 +187,9 @@ void acquire_GPS(){
         
         Serial.print("Dist ");Serial.println(dist_waypoint);
 
+        rumo_ideal =(double)TinyGPSPlus::courseTo(lat_barco,long_barco,lat_waypoint,long_waypoint);
+        Serial.print("Course ");Serial.println(rumo_ideal);
+
         if (waypoint_radius > dist_waypoint){
             waypoint_count += 1;
             lat_waypoint=lat_long_desvio_waypoint[waypoint_count*3];
@@ -221,11 +226,17 @@ void acquire_buss(){
         rumo_real -= 2 * PI;
     }
     // Converter para graus e guardar na variável apropriada
-    rumo_real = rumo_real * 180/M_PI;
+    rumo_real = rumo_real * 180/M_PI-90;
     erro_rumo=rumo_ideal-rumo_real;
 
+    if (abs(erro_rumo)<lambda_rumo){
+      
+      erro_rumo=0;
+      }
+    
     flag_buss--;
     Serial.print("rumo real: ");Serial.println(rumo_real);
+    Serial.print("erro rumo: ");Serial.println(erro_rumo);
 
 }
 
@@ -282,14 +293,15 @@ void setup() {
     compass.setSamples(HMC5883L_SAMPLES_8);
 
     // Set calibration offset. See HMC5883L_calibration.ino
-    compass.setOffset(99, -41);
+    compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
 }
 
 void loop() {
-    Serial.print("STATE= "); Serial.println(current_state);
+    
 
     if (flag_hall>0) {
-        acquire_hall();    
+        acquire_hall();
+        Serial.print("STATE= "); Serial.println(current_state);    
     }
     if(flag_buss>0){
         acquire_buss();
@@ -305,7 +317,7 @@ void loop() {
             //manter leme
             servo.write(90);
 
-            if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110){
+            if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
                 current_state=3; //ir para contra por BB
                 break;
 
@@ -376,20 +388,28 @@ void loop() {
             if(status_Hall==B0010 || status_Hall==B0110){
                 flag_13=1;
                 current_state=8; //ir para arribar_1 BE
-                break;
+ 
             }
             else if(abs(erro_rumo)<(90+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe)){
                 flag_13=1;
                 current_state=12; //ir para Jib BE
-                break;
+    
             }
             else if(erro_rumo < 0 && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
                 current_state=10; //ir para orçar BE
-                break;
+  
             }
             else if(erro_rumo > 0) {//rumo_ideal está para BB
                 current_state=6; //ir para arribar_2 BE
             }
+            
+            else if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0100){
+                current_state=3; //ir para contra por BB
+              }
+
+            else if(status_Hall==B0000){
+                current_state=0; //ir para à favor
+              }
             break;
 
         case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
@@ -407,7 +427,7 @@ void loop() {
             //leme p/ BB
             servo.write(0);
 
-            if(status_Hall==B0000 || (erro_rumo<(zero_margin_rumo) && erro_rumo>(-1)*zero_margin_rumo)) {
+            if(status_Hall!=B0011 || status_Hall!=B0001  || erro_rumo==0) {
                 current_state=4; //ir para contra por BE
             }
             break;
