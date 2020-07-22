@@ -11,13 +11,15 @@ Servo servo;
 int pos=0;
 #define pos_zero 90 //define posição zero
 #define servoPin 18 //define pin do servo
-#define leme_min 60 //max de -30 graus
-#define leme_max 120 //max de 30 graus
+#define leme_min -30 //max de -30 graus
+#define leme_max 30 //max de 30 graus
+#define servo_min 0
+#define servo_max 180
 
 //PID
 double SOMAE=0;
 #define Kp 1.2
-#define Ki 0.5
+#define Ki 0.05
 #define Kd 0.5
 float timer_PID=0;
 float E=0;
@@ -30,7 +32,7 @@ int current_state = 0;
 int previous_state = 0;
 
 //erro de rumo
-#define lambda_rumo 5 //poço de erro em relação ao rumo ideal
+#define lambda_rumo 1 //poço de erro em relação ao rumo ideal
 #define lambda_jibe 5 //poço de erro de rumo em relação ao rumo ideal ao dar jibe
 #define ang_jibe 110 //diferença entre rumo real e ideal para realizar o jibe
 int rumo_margin_flag=0; //1-> rumo está dentro da margem de erro estipulada | 0->não está dentro
@@ -55,6 +57,7 @@ HardwareSerial SerialGPS(1);//RX1 e TX1
 //variáveis GPS====================================================================
 
 double rumo_ideal = 0;
+double rumo_ideal_PID=0;
 //double rumo_idel_save=0;
 //double rumo_ideal = 170;
 float lat_barco,long_barco;
@@ -63,7 +66,7 @@ float lat_barco,long_barco;
 
 float lat_waypoint, long_waypoint;
 float desvio_waypoint;
-#define waypoint_radius 100 //em metros
+#define waypoint_radius 10 //em metros
 
 //lista de waypoints com respectivos desvios magnéticos
 float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.24, -23.554985, -46.876259, -21.24};
@@ -236,7 +239,7 @@ void acquire_GPS(){
     Serial.print("GPS= ");Serial.println(gps.satellites.value());
     
 
-    if (gps.satellites.value() > 4) {
+    if (gps.satellites.value() >= 4) {
     
         lat_barco=gps.location.lat();
         long_barco=gps.location.lng();
@@ -293,43 +296,39 @@ void acquire_buss(){
     }
     // Converter para graus e guardar na variável apropriada
     rumo_real = rumo_real * 180/M_PI-90;
-    
-    if(current_state==3 || current_state==4){
-        calc_erro_rumo(rumo_real);
-    }
-    else{
-        calc_erro_rumo(rumo_ideal);
-    }
 
+    erro_rumo=calc_erro_rumo(rumo_ideal);
+    
     flag_buss--;
     Serial.print("rumo real: ");Serial.println(rumo_real);
     Serial.print("erro rumo: ");Serial.println(erro_rumo);
 
 }
 
-void calc_erro_rumo(double rumo){
+double calc_erro_rumo(double rumo){
     
-    erro_rumo=rumo_real-(rumo+cte);
+    float erro=rumo_real-(rumo);
 
     //ajeitar sinal para menor mudança de rumo
-    if (((erro_rumo) < 0 && (erro_rumo) >= -180)) {
-        erro_rumo = erro_rumo;
+    if ((erro < 0) && (erro >= -180)) {
+        erro = erro;
     }
-    else if(((erro_rumo) > 0 && (erro_rumo) <= 180)){
-        erro_rumo= erro_rumo;
+    else if((erro > 0) && (erro <= 180)){
+        erro = erro;
     }
-    else if (((erro_rumo) < 360  && (erro_rumo) > 180) ) {
-        erro_rumo = -abs(abs(erro_rumo) - 360);
+    else if (((erro) < 360  && (erro) > 180) ) {
+        erro = -abs(abs(erro) - 360);
     }
-    else if(((erro_rumo) > -360 && (erro_rumo) < -180)){
-        erro_rumo = abs(abs(erro_rumo) - 360);
+    else if((erro > -360) && (erro < -180)){
+        erro = abs(abs(erro) - 360);
     }
-    if(abs(erro_rumo)<lambda_rumo){
+    if(abs(erro) < lambda_rumo){
         rumo_margin_flag=1;
     }
     else{
         rumo_margin_flag=0;
     }
+    return erro;
 }
 
 int leme_ok(int pos_leme){
@@ -356,7 +355,7 @@ int calc_PID(float E){
     //velocidade angular em rad/s
     v_yaw=(rumo_real-ultimo_rumo)*PI*1000/(180*heap);
 
-    return leme_ok(pos_zero+Kp*E+Ki*SOMAE-Kd*v_yaw);
+    return map(leme_ok(Kp*E+Ki*SOMAE-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
 }
 int calc_PD(float E){
 
@@ -367,7 +366,7 @@ int calc_PD(float E){
     //velocidade angular em rad/s
     v_yaw=(rumo_real-ultimo_rumo)*PI*1000/(180*heap);
 
-    return leme_ok(pos_zero+Kp*E-Kd*v_yaw);
+    return map(leme_ok(Kp*E-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
 }
 
 
@@ -436,7 +435,16 @@ void setup() {
 void loop() {
     
     Serial.print("STATE= "); Serial.println(current_state);
-    delay(250);
+    Serial.print("LAST STATE= "); Serial.println(previous_state);
+    Serial.print("POS= "); Serial.println(pos);
+    Serial.print("SOMAE= "); Serial.println(SOMAE);
+    Serial.print("CTE= "); Serial.println(cte);
+    
+    delay(200);
+
+    if(abs(SOMAE)>=100){
+      SOMAE=0;  
+    }
     
     
     if (flag_hall>0) {
@@ -476,7 +484,10 @@ void loop() {
                     previous_state = current_state;
                     current_state=2; //ir para ajeitar BE
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
+                
                 break;
 
             case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
@@ -488,7 +499,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=0; //ir para à favor
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
@@ -500,10 +513,13 @@ void loop() {
                     previous_state = current_state;
                     current_state=0; //ir para à favor
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 3: //contra por BB------------------------------------------------------------------------------------------------
+                
                 if(previous_state!=3){
                     switch(previous_state){
                         case 0:
@@ -511,10 +527,12 @@ void loop() {
                                 cte=-5;
                             }
                             else{
-                                cte=0
+                                cte=0;
                             }
                             break;
-
+                        case 4:
+                            cte=5;
+                            break;
                         case 5:
                             cte=0;
                             break;
@@ -526,47 +544,56 @@ void loop() {
                                 cte=-5;
                             }
                             else{
-                                cte=0
+                                cte=0;
                             }
                             break;
-                    }                   
+                    }
+                    rumo_ideal_PID=rumo_real+cte;                   
                 }
-                calc_erro_rumo(rumo_real);
-                pos=calc_PID(erro_rumo);
+                E=calc_erro_rumo(rumo_ideal_PID);
+                Serial.print("E= "); Serial.println(E);
+                pos=calc_PID(E);
                 if(previous_state==12){
                     pos=0;
                 }
                 servo.write(pos);
-
                 if(status_Hall==B0100 || status_Hall==B0110){
                     flag_13=1;
                     previous_state = current_state;
                     current_state=7; //ir para arribar_1 BB
+                    cte=0;
                 }
-                else if(abs(erro_rumo)<(ang_jibe+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B1100){
+                else if(erro_rumo < -ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B1100){
                     flag_13=1;
                     previous_state = current_state;
                     current_state=11; //ir para Jib BB
+                    cte=0;
                 }
                 else if(erro_rumo < - lambda_rumo && status_Hall==B1000){//rumo_ideal está para BB e pode orçar
                     previous_state = current_state;
                     current_state=9; //ir para orçar BB
+                    cte=0;
                 }
                 else if(erro_rumo > lambda_rumo) {//rumo_ideal está para BE
                     previous_state = current_state;
                     current_state=5; //ir para arribar_2 BB
+                    cte=0;
                 }
 
                 else if(status_Hall==B0000){
                     previous_state = current_state;
                     current_state=0; //ir para à favor
+                    cte=0;
                 }
 
                 else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
+                    cte=0;
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 4: //contra por BB------------------------------------------------------------------------------------------------
@@ -578,10 +605,12 @@ void loop() {
                                 cte=5;
                             }
                             else{
-                                cte=0
+                                cte=0;
                             }
                             break;
-
+                        case 3:
+                            cte=-5;
+                            break;
                         case 6:
                             cte=0;
                             break;
@@ -593,13 +622,15 @@ void loop() {
                                 cte=5;
                             }
                             else{
-                                cte=0
+                                cte=0;
                             }
                             break;
-                    }                   
+                    }
+                    rumo_ideal_PID=rumo_real+cte;                   
                 }
-                calc_erro_rumo(rumo_real);
-                pos=calc_PID(erro_rumo);
+                E=calc_erro_rumo(rumo_ideal_PID);
+                Serial.print("E= "); Serial.println(E);
+                pos=calc_PID(E);
                 if(previous_state==11){
                     pos=0;
                 }
@@ -608,32 +639,40 @@ void loop() {
                 if(status_Hall==B0010 || status_Hall==B0110){
                     flag_13=1;
                     previous_state = current_state;
-                    current_state=8; //ir para arribar_1 BE   
+                    current_state=8; //ir para arribar_1 BE
+                    cte=0;   
                 }
-                else if(abs(erro_rumo)<(ang_jibe+lambda_jibe) && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B0011){
+                else if(erro_rumo > ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B0011){
                     flag_13=1;
                     previous_state = current_state;
-                    current_state=12; //ir para Jib BE        
+                    current_state=12; //ir para Jib BE
+                    cte=0;        
                 }
                 else if(erro_rumo > lambda_rumo && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
                     previous_state = current_state;
-                    current_state=10; //ir para orçar BE    
+                    current_state=10; //ir para orçar BE
+                    cte=0;    
                 }
                 else if(erro_rumo < -lambda_rumo) {//rumo_ideal está para BB
                     previous_state = current_state;
                     current_state=6; //ir para arribar_2 BE
+                    cte=0;
                 }
                 
                 else if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0100){
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB
+                    cte=0;
                 }
 
                 else if(status_Hall==B0000){
                     previous_state = current_state;
                     current_state=0; //ir para à favor
+                    cte=0;
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
@@ -645,7 +684,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 6: //arribar_2 BE-------------------------------------------------------------------------------------------------
@@ -657,7 +698,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 7: //arribar_1 BB-------------------------------------------------------------------------------------------------
@@ -686,12 +729,14 @@ void loop() {
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB
                 }
-                else if(millis()-timer_13 > deltat ){=
+                else if(millis()-timer_13 > deltat ){
                     flag_13=1;
                     previous_state = current_state;
                     current_state=13; //ir para espera
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
                 
             
@@ -727,7 +772,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=13; //ir para espera
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 9: //orçar BB-----------------------------------------------------------------------------------------------------
@@ -740,7 +787,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 10: //orçar BE----------------------------------------------------------------------------------------------------
@@ -753,7 +802,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 11: //Jibe BB------------------------------------------------------------------------------------------------------
@@ -766,7 +817,7 @@ void loop() {
                 SOMAE=0;
                 servo.write(leme_max);
 
-                if(abs(erro_rumo)<lambda_rumo || (status_Hall!=B1100 && status_Hall!=B1000 && status_Hall!=B0000 && status_Hall!=B0100)){
+                if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B1100 && status_Hall!=B1000 && status_Hall!=B0000 && status_Hall!=B0100)){
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
                 }
@@ -776,7 +827,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=13; //ir para espera
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 12: //Jibe BE------------------------------------------------------------------------------------------------------
@@ -789,7 +842,7 @@ void loop() {
                 SOMAE=0;
                 servo.write(leme_min);
 
-                if(abs(erro_rumo)<lambda_rumo || (status_Hall!=B0011 && status_Hall!=B0001 && status_Hall!=B0000 && status_Hall!=B0010)) {
+                if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B0011 && status_Hall!=B0001 && status_Hall!=B0000 && status_Hall!=B0010)) {
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB
                 }
@@ -799,7 +852,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=13; //ir para espera
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
 
             case 13: //espera------------------------------------------------------------------------------------------------------
@@ -815,7 +870,9 @@ void loop() {
                     previous_state = current_state;
                     current_state=0; //ir para à favor
                 }
-                previous_state = current_state;
+                else{
+                  previous_state = current_state;
+                }
                 break;
         }
     }
