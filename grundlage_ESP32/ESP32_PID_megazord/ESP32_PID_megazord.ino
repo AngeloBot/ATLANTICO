@@ -307,21 +307,19 @@ void acquire_buss(){
 
 double calc_erro_rumo(double rumo){
     
-    float erro=rumo_real-(rumo);
+    float erro=rumo-rumo_real;
 
     //ajeitar sinal para menor mudança de rumo
-    if ((erro < 0) && (erro >= -180)) {
-        erro = erro;
+    if (abs(erro) <= 180){
+        erro=erro;
     }
-    else if((erro > 0) && (erro <= 180)){
-        erro = erro;
+    else if(abs(erro) > 180 && erro>0){
+        erro-=360;
     }
-    else if (((erro) < 360  && (erro) > 180) ) {
-        erro = -abs(abs(erro) - 360);
+    else if(abs(erro) > 180 && erro<0){
+        erro+=360;
     }
-    else if((erro > -360) && (erro < -180)){
-        erro = abs(abs(erro) - 360);
-    }
+
     if(abs(erro) < lambda_rumo){
         rumo_margin_flag=1;
     }
