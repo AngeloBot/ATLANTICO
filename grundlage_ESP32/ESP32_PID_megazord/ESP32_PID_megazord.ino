@@ -9,12 +9,14 @@
 //configuração servo
 Servo servo;
 int pos=0;
+int nova_pos=0;
 #define pos_zero 90 //define posição zero
 #define servoPin 18 //define pin do servo
 #define leme_min -30 //max de -30 graus
 #define leme_max 30 //max de 30 graus
 #define servo_min 0
 #define servo_max 180
+#define delta_servo 45 //variação máxima de 45 graus entre cada movimento de servo
 
 //PID
 double SOMAE=0;
@@ -307,17 +309,22 @@ void acquire_buss(){
 
 double calc_erro_rumo(double rumo){
     
-    float erro=rumo-rumo_real;
+    float erro=rumo_real-rumo;
 
     //ajeitar sinal para menor mudança de rumo
-    if (abs(erro) <= 180){
-        erro=erro;
+    if (((erro) < 0 && (erro) >= -180)) {
+    erro = erro;
     }
-    else if(abs(erro) > 180 && erro>0){
-        erro-=360;
+
+    else if(((erro) > 0 && (erro) <= 180)){
+    erro = erro;
     }
-    else if(abs(erro) > 180 && erro<0){
-        erro+=360;
+    else if (((erro) < 360  && (erro) > 180) ) {
+        erro = -abs(abs(erro) - 360);
+    }
+
+    else if(((erro) > -360 && (erro) < -180)){
+        erro = abs(abs(erro_rumo) - 360);
     }
 
     if(abs(erro) < lambda_rumo){
@@ -367,6 +374,18 @@ int calc_PD(float E){
     return map(leme_ok(Kp*E-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
 }
 
+void move_servo(int nova_pos){
+
+    if(nova_pos-pos > delta_servo){
+        pos=+delta_servo;
+    }
+    else if(nova_pos-pos < -delta_servo){
+        pos-=delta_servo;
+    }
+    servo.write(pos);
+
+
+}
 
 void setup() {
     Serial.begin(115200);
@@ -431,7 +450,8 @@ void setup() {
 }
 
 void loop() {
-    
+
+    Serial.println("=======================");
     Serial.print("STATE= "); Serial.println(current_state);
     Serial.print("LAST STATE= "); Serial.println(previous_state);
     Serial.print("POS= "); Serial.println(pos);
@@ -462,10 +482,8 @@ void loop() {
     
             case 0: //à favor-----------------------------------------------------------------------------------------------------
                 
-
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-
+                move_servo(calc_PID(erro_rumo));
+                
                 if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
                     previous_state = current_state;
                     current_state=3; //ir para contra por BB 
@@ -474,47 +492,47 @@ void loop() {
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
                 }
-                else if(erro_rumo < -lambda_rumo && status_Hall==B0000){
-                    previous_state = current_state;
-                    current_state=1; //ir para ajeitar BB
-                }
-                else if(erro_rumo > lambda_rumo && status_Hall==B0000){
-                    previous_state = current_state;
-                    current_state=2; //ir para ajeitar BE
-                }
+//                else if(erro_rumo < -lambda_rumo && status_Hall==B0000){
+//                    previous_state = current_state;
+//                    current_state=1; //ir para ajeitar BB
+//                }
+//                else if(erro_rumo > lambda_rumo && status_Hall==B0000){
+//                    previous_state = current_state;
+//                    current_state=2; //ir para ajeitar BE
+//                }
                 else{
                   previous_state = current_state;
                 }
                 
                 break;
 
-            case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
-
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-
-                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
-                    previous_state = current_state;
-                    current_state=0; //ir para à favor
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
-
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-
-                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
-                    previous_state = current_state;
-                    current_state=0; //ir para à favor
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
+//            case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
+//
+//                pos=calc_PID(erro_rumo);
+//                servo.write(pos);
+//
+//                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
+//                    previous_state = current_state;
+//                    current_state=0; //ir para à favor
+//                }
+//                else{
+//                  previous_state = current_state;
+//                }
+//                break;
+//
+//            case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
+//
+//                pos=calc_PID(erro_rumo);
+//                servo.write(pos);
+//
+//                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
+//                    previous_state = current_state;
+//                    current_state=0; //ir para à favor
+//                }
+//                else{
+//                  previous_state = current_state;
+//                }
+//                break;
 
             case 3: //contra por BB------------------------------------------------------------------------------------------------
                 
@@ -522,24 +540,24 @@ void loop() {
                     switch(previous_state){
                         case 0:
                             if(rumo_margin_flag==0){
-                                cte=-5;
+                                cte=5;
                             }
                             else{
                                 cte=0;
                             }
                             break;
                         case 4:
-                            cte=5;
+                            cte=-5;
                             break;
                         case 5:
                             cte=0;
                             break;
                         case 7:
-                            cte=5;
+                            cte=-5;
                             break;
                         case 9:
                             if(rumo_margin_flag==0){
-                                cte=-5;
+                                cte=5;
                             }
                             else{
                                 cte=0;
@@ -600,24 +618,24 @@ void loop() {
                     switch(previous_state){
                         case 0:
                             if(rumo_margin_flag==0){
-                                cte=5;
+                                cte=-5;
                             }
                             else{
                                 cte=0;
                             }
                             break;
                         case 3:
-                            cte=-5;
+                            cte=5;
                             break;
                         case 6:
                             cte=0;
                             break;
                         case 8:
-                            cte=-5;
+                            cte=5;
                             break;
                         case 10:
                             if(rumo_margin_flag==0){
-                                cte=5;
+                                cte=-5;
                             }
                             else{
                                 cte=0;
