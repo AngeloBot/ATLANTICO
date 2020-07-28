@@ -80,6 +80,7 @@ void loop() {
     digitalWrite(LpinFLEFT, LOW);
     status_Hall &= ~(1<<3);
     }
-    
-    Serial.println(status_Hall);
+
+    Serial.print(statusFLEFT);Serial.print("\t");Serial.print(statusLEFT);Serial.print("\t");Serial.print(statusRIGHT);Serial.print("\t");Serial.println(statusFRIGHT);
+    //Serial.println(status_Hall);
   }

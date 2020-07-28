@@ -14,13 +14,13 @@ int nova_pos=0;
 #define servoPin 18 //define pin do servo
 #define leme_min -30 //max de -30 graus
 #define leme_max 30 //max de 30 graus
-#define servo_min 0
-#define servo_max 180
+#define servo_min 30
+#define servo_max 150
 #define delta_servo 45 //variação máxima de 45 graus entre cada movimento de servo
 
 //PID
 double SOMAE=0;
-#define Kp 1.2
+#define Kp 2.0
 #define Ki 0.05
 #define Kd 0.5
 float timer_PID=0;
@@ -34,10 +34,11 @@ int current_state = 0;
 int previous_state = 0;
 
 //erro de rumo
-#define lambda_rumo 1 //poço de erro em relação ao rumo ideal
-#define lambda_jibe 5 //poço de erro de rumo em relação ao rumo ideal ao dar jibe
+#define lambda_rumo 2 //poço de erro em relação ao rumo ideal
+#define lambda_jibe 10 //poço de erro de rumo em relação ao rumo ideal ao dar jibe
 #define ang_jibe 110 //diferença entre rumo real e ideal para realizar o jibe
 int rumo_margin_flag=0; //1-> rumo está dentro da margem de erro estipulada | 0->não está dentro
+#define constante 10
 
 //variáveis para transição para o estado 13
 double deltat = 10000; //em ms
@@ -49,8 +50,12 @@ HMC5883L compass;
 //variáveis bússola================================================================
 float rumo_real;
 float erro_rumo=0;
-#define BUSS_X_OFFSET 262
-#define BUSS_Y_OFFSET -171
+int get_buss=0;
+float sum_buss=0;
+float sum_erro_buss=0;
+int amostra_buss=0;
+#define BUSS_X_OFFSET 215
+#define BUSS_Y_OFFSET 194
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -62,16 +67,20 @@ double rumo_ideal = 0;
 double rumo_ideal_PID=0;
 //double rumo_idel_save=0;
 //double rumo_ideal = 170;
-float lat_barco,long_barco;
+double lat_barco,long_barco;
 //float lat_barco=-23.554703;
 //float long_barco=-46.877897;
 
-float lat_waypoint, long_waypoint;
+double lat_waypoint, long_waypoint;
 float desvio_waypoint;
-#define waypoint_radius 10 //em metros
+#define waypoint_radius 3 //em metros
 
 //lista de waypoints com respectivos desvios magnéticos
-float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.24, -23.554985, -46.876259, -21.24};
+//float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.42, -23.554985, -46.876259, -21.42};
+//quintal
+double lat_long_desvio_waypoint[6] = {-23.554781, -46.877785,-21.42, -23.554695, -46.877906,-21.42};
+//guarapiranga
+//double lat_long_desvio_waypoint[6] = {-23.694047, -46.730670,-21.45, -23.695619, -46.728572, -21.45, -23.695314, -46.732949,-21.45};
 int waypoint_count = 0;
 
 //=================================================================================
@@ -108,7 +117,7 @@ int statusFRIGHT = 0;
 //variável que resume estado de todos os hall
 int status_Hall =B0000;
 //variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
-#define maxHallSignal 10
+#define maxHallSignal 30
 
 void IRAM_ATTR onTimer0(){
   
@@ -239,7 +248,6 @@ void acquire_GPS(){
     }
     
     Serial.print("GPS= ");Serial.println(gps.satellites.value());
-    
 
     if (gps.satellites.value() >= 4) {
     
@@ -271,13 +279,13 @@ void acquire_GPS(){
 }
 void acquire_buss(){
 
+    float erro_rumo_int;
     //salvar rumo anterior para calculo da velocidade angular do barco
-    ultimo_rumo=rumo_real;
+
 
     Vector norm = compass.readNormalize();
-
     // Calculate heading
-    rumo_real = atan2(norm.YAxis, norm.XAxis);
+    float rumo_real_int = atan2(norm.YAxis, -norm.XAxis);
     // Set declination angle on your location and fix heading
     // You can find your declination on: http://magnetic-declination.com/
     // (+) Positive or (-) for negative
@@ -286,22 +294,42 @@ void acquire_buss(){
     // For Santo Amaro / Brazil declination angle is 21'23W(negative)
     // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
     // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-    float declinationAngle = (-21.0 - (25.0 / 60.0)) / (180 / M_PI);
-    rumo_real += declinationAngle;
+
+    //rumo_real_int=-rumo_real_int;
+    rumo_real_int-=PI;
+    rumo_real_int += desvio_waypoint*(PI/180);
     
     // Correct for heading < 0deg and heading > 360deg
-    if (rumo_real < 0){
-        rumo_real += 2 * PI;
+    if (rumo_real_int < 0){
+        rumo_real_int += 2 * PI;
     }
-    if (rumo_real > 2 * PI){
-        rumo_real -= 2 * PI;
+    if (rumo_real_int > 2 * PI){
+        rumo_real_int -= 2 * PI;
     }
+    
     // Converter para graus e guardar na variável apropriada
-    rumo_real = rumo_real * 180/M_PI-90;
+    rumo_real_int = rumo_real_int * 180/PI;
+    //rumo_real_int = rumo_real_int * 180/PI;
+    
+    erro_rumo_int=calc_erro_rumo(rumo_ideal);
 
-    erro_rumo=calc_erro_rumo(rumo_ideal);
+    sum_erro_buss+=erro_rumo_int;
+    sum_buss+=rumo_real_int;
+
+    amostra_buss++;
+    
+    if(get_buss==1){
+      get_buss=0;  
+      ultimo_rumo=rumo_real;
+      rumo_real=sum_buss/amostra_buss;
+      sum_buss=0;
+      erro_rumo=sum_erro_buss/amostra_buss;
+      sum_erro_buss=0;
+      amostra_buss=0;
+    }
     
     flag_buss--;
+    
     Serial.print("rumo real: ");Serial.println(rumo_real);
     Serial.print("erro rumo: ");Serial.println(erro_rumo);
 
@@ -309,24 +337,21 @@ void acquire_buss(){
 
 double calc_erro_rumo(double rumo){
     
-    float erro=rumo_real-rumo;
+    float erro=rumo-rumo_real;
 
     //ajeitar sinal para menor mudança de rumo
-    if (((erro) < 0 && (erro) >= -180)) {
+    if (abs(erro) <= 180 ) {
     erro = erro;
     }
 
-    else if(((erro) > 0 && (erro) <= 180)){
-    erro = erro;
+    else if(((erro) > 0 && abs(erro) > 180)){
+    erro -=360;
     }
-    else if (((erro) < 360  && (erro) > 180) ) {
-        erro = -abs(abs(erro) - 360);
+    
+    else if(((erro) < 0 && abs(erro) > 180)){
+    erro += 360;
     }
-
-    else if(((erro) > -360 && (erro) < -180)){
-        erro = abs(abs(erro_rumo) - 360);
-    }
-
+    
     if(abs(erro) < lambda_rumo){
         rumo_margin_flag=1;
     }
@@ -357,8 +382,8 @@ int calc_PID(float E){
     
     SOMAE+=E*heap/1000;
 
-    //velocidade angular em rad/s
-    v_yaw=(rumo_real-ultimo_rumo)*PI*1000/(180*heap);
+    //velocidade angular em grau/s
+    v_yaw=(rumo_real-ultimo_rumo)*1000/heap;
 
     return map(leme_ok(Kp*E+Ki*SOMAE-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
 }
@@ -368,8 +393,8 @@ int calc_PD(float E){
     int heap=now-timer_PID;
     timer_PID=now;
     
-    //velocidade angular em rad/s
-    v_yaw=(rumo_real-ultimo_rumo)*PI*1000/(180*heap);
+    //velocidade angular em grau/s
+    v_yaw=(rumo_real-ultimo_rumo)*1000/heap;
 
     return map(leme_ok(Kp*E-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
 }
@@ -415,12 +440,12 @@ void setup() {
 
     timer1 = timerBegin(1, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer1, &onTimer1, true); // edge (not level) triggered 
-    timerAlarmWrite(timer1, 100000, true); // 100000 * 100 us = 10 s (0.1Hz), autoreload true
+    timerAlarmWrite(timer1, 50000, true); // 50000 * 100 us = 5 s (0.2Hz), autoreload true
     timerAlarmEnable(timer1); // enable
 
     timer2 = timerBegin(2, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer2, &onTimer2, true); // edge (not level) triggered 
-    timerAlarmWrite(timer2, 2500, true); // 2500 * 100 us = 0.25 s (4Hz), autoreload true
+    timerAlarmWrite(timer2, 500, true); // 500 * 100 us = 0.05 s (20Hz), autoreload true
     timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
@@ -446,6 +471,7 @@ void setup() {
     acquire_GPS();
     acquire_buss();
     timer_PID=millis();
+    float sum_rumo=0;
 
 }
 
@@ -457,9 +483,12 @@ void loop() {
     Serial.print("POS= "); Serial.println(pos);
     Serial.print("SOMAE= "); Serial.println(SOMAE);
     Serial.print("CTE= "); Serial.println(cte);
+    Serial.print("V_ang= "); Serial.println(v_yaw);
+
     
     delay(200);
-
+    get_buss=1;
+    
     if(abs(SOMAE)>=100){
       SOMAE=0;  
     }
@@ -481,8 +510,10 @@ void loop() {
         switch (current_state){
     
             case 0: //à favor-----------------------------------------------------------------------------------------------------
-                
-                move_servo(calc_PID(erro_rumo));
+
+                pos=calc_PID(erro_rumo);
+                servo.write(pos);
+                //move_servo(calc_PID(erro_rumo));
                 
                 if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
                     previous_state = current_state;
@@ -540,24 +571,24 @@ void loop() {
                     switch(previous_state){
                         case 0:
                             if(rumo_margin_flag==0){
-                                cte=5;
+                                cte=-constante;
                             }
                             else{
                                 cte=0;
                             }
                             break;
                         case 4:
-                            cte=-5;
+                            cte=constante;
                             break;
                         case 5:
                             cte=0;
                             break;
                         case 7:
-                            cte=-5;
+                            cte=constante;
                             break;
                         case 9:
                             if(rumo_margin_flag==0){
-                                cte=5;
+                                cte=-constante;
                             }
                             else{
                                 cte=0;
@@ -618,24 +649,24 @@ void loop() {
                     switch(previous_state){
                         case 0:
                             if(rumo_margin_flag==0){
-                                cte=-5;
+                                cte=constante;
                             }
                             else{
                                 cte=0;
                             }
                             break;
                         case 3:
-                            cte=5;
+                            cte=-constante;
                             break;
                         case 6:
                             cte=0;
                             break;
                         case 8:
-                            cte=5;
+                            cte=-constante;
                             break;
                         case 10:
                             if(rumo_margin_flag==0){
-                                cte=-5;
+                                cte=constante;
                             }
                             else{
                                 cte=0;

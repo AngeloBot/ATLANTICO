@@ -16,7 +16,7 @@ int LpinFLEFT = 8;
 int LpinFRIGHT = 2;
 
 int status_Hall =B0;
-int maxHallSignal=10;
+int maxHallSignal=15;
 
 void setup() {
   
@@ -41,7 +41,7 @@ void loop() {
     statusLEFT = analogRead(pinLEFT);
     statusFRIGHT = analogRead(pinFRIGHT);
     statusFLEFT = analogRead(pinFLEFT);
-
+    
     if ( statusFRIGHT < maxHallSignal){
     status_Hall |= 1;
     digitalWrite(LpinFRIGHT, HIGH);
@@ -79,6 +79,7 @@ void loop() {
     digitalWrite(LpinFLEFT, LOW);
     status_Hall &= ~(1<<3);
     }
-    
-    Serial.println(status_Hall);
+
+    Serial.print(statusFLEFT);Serial.print("\t");Serial.print(statusLEFT);Serial.print("\t");Serial.print(statusRIGHT);Serial.print("\t");Serial.println(statusFRIGHT);
+    //Serial.println(status_Hall);
   }

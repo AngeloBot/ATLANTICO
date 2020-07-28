@@ -91,7 +91,7 @@ def lemeok(leme):
     
 
 def main():
-    waypoints = [[5,20]]#[[40,0],[40,40],[0,40],[0,80], [40,80], [0,0]]
+    waypoints = [[40,0],[40,40],[0,40],[0,80], [40,80], [0,0]]
     plt.figure(figsize=(5,5))
     plt.axes().set_aspect('equal', 'datalim')
     for i in range(len(waypoints)):
@@ -140,7 +140,7 @@ def main():
         if SOMAE > 30:
             SOMAE = 0
             print('zerou SOMAE')
-        Kp = 1.2
+        Kp = 2
         Ki = 0.5
         Kd = 0.5
         
