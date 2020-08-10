@@ -1,3 +1,4 @@
+
 #include <Wire.h>
 #include <HMC5883L.h>
 
@@ -54,8 +55,8 @@ int get_buss=0;
 float sum_buss=0;
 float sum_erro_buss=0;
 int amostra_buss=0;
-#define BUSS_X_OFFSET 215
-#define BUSS_Y_OFFSET 194
+#define BUSS_X_OFFSET 88
+#define BUSS_Y_OFFSET 37
 //=================================================================================
 
 TinyGPSPlus gps;
