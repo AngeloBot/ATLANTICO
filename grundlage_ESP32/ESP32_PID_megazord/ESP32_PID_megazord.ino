@@ -55,8 +55,8 @@ int get_buss=0;
 float sum_buss=0;
 float sum_erro_buss=0;
 int amostra_buss=0;
-#define BUSS_X_OFFSET 278
-#define BUSS_Y_OFFSET -240
+#define BUSS_X_OFFSET 171
+#define BUSS_Y_OFFSET -189
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -281,8 +281,7 @@ void acquire_GPS(){
 void acquire_buss(){
 
     float erro_rumo_int;
-    //salvar rumo anterior para calculo da velocidade angular do barco
-
+    
 
     Vector norm = compass.readNormalize();
     // Calculate heading
@@ -419,7 +418,7 @@ void setup() {
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    //SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
     
     servo.attach(servoPin);
     servo.write(pos_zero);

@@ -290,8 +290,7 @@ void acquire_buss(){
 
     
     int done=0;
-    //salvar rumo anterior para calculo da velocidade angular do barco
-
+    
 
     Vector norm = compass.readNormalize();
     // Calculate heading
@@ -424,7 +423,7 @@ void setup() {
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    //SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
     
     servo.attach(servoPin);
     servo.write(pos_zero);
