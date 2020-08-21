@@ -63,8 +63,8 @@ int get_buss=0;
 float sum_buss=0;
 float sum_erro_buss=0;
 int amostra_buss=0;
-#define BUSS_X_OFFSET 465
-#define BUSS_Y_OFFSET -79
+#define BUSS_X_OFFSET 171
+#define BUSS_Y_OFFSET -189
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -288,7 +288,8 @@ void acquire_GPS(){
 }
 void acquire_buss(){
 
-    float erro_rumO;
+    
+    int done=0;
     //salvar rumo anterior para calculo da velocidade angular do barco
 
 
@@ -307,15 +308,22 @@ void acquire_buss(){
     //rumo_real_int=-rumo_real_int;
     rumo_real-=PI;
     rumo_real += desvio_waypoint*(PI/180);
+    SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
     
     // Correct for heading < 0deg and heading > 360deg
-    if (rumo_real < 0){
-        rumo_real += 2 * PI;
+    while (done!=1){
+      if (rumo_real < 0){
+          rumo_real += 2 * PI;
+          SerialBT.print("rumo real menor: ");SerialBT.println(rumo_real);
+      }
+      else if (rumo_real > 2 * PI){
+          rumo_real -= 2 * PI;
+          SerialBT.print("rumo real maior: ");SerialBT.println(rumo_real);
+      }
+      else{
+        done=1;
+        }
     }
-    if (rumo_real > 2 * PI){
-        rumo_real -= 2 * PI;
-    }
-    
     // Converter para graus e guardar na variável apropriada
     rumo_real = rumo_real * 180/PI;
     //rumo_real_int = rumo_real_int * 180/PI;
@@ -408,7 +416,7 @@ void move_servo(int nova_pos){
 
 void setup() {
 
-      //iniciar bluetooth definindo nome do dispositivo
+    //iniciar bluetooth definindo nome do dispositivo
     SerialBT.begin("ESP32_veleiro_autonomo");
     
     Serial.begin(115200);

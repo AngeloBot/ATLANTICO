@@ -422,12 +422,16 @@ void move_servo(int nova_pos){
 }
 
 void setup() {
+
+    //iniciar bluetooth definindo nome do dispositivo
+    SerialBT.begin("ESP32_veleiro_autonomo");
+    
     Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    //SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
     
     servo.attach(servoPin);
     servo.write(pos_zero);
@@ -481,9 +485,6 @@ void setup() {
     acquire_buss();
     timer_PID=millis();
     float sum_rumo=0;
-
-    //iniciar bluetooth definindo nome do dispositivo
-    SerialBT.begin("ESP32_veleiro_autonomo");
 
 }
 
