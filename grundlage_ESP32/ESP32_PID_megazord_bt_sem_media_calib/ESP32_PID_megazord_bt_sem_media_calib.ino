@@ -63,8 +63,11 @@ int get_buss=0;
 float sum_buss=0;
 float sum_erro_buss=0;
 int amostra_buss=0;
-#define BUSS_X_OFFSET 126
-#define BUSS_Y_OFFSET -22
+//int buss_X_OFFSET=0;
+//int buss_Y_OFFSET=0;
+//#define BUSS_TIME_CALIB 30000 //em milissegundos (30s)
+int calib_buss=0;
+
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -128,6 +131,7 @@ int status_Hall =B0000;
 //variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
 #define maxHallSignal 30
 
+
 void IRAM_ATTR onTimer0(){
   
     if(counter0==0){
@@ -169,6 +173,28 @@ void IRAM_ATTR onTimer2(){
 
     counter2=~counter2;
     flag_buss++;
+
+}
+void calib_buss(){
+    
+    digitalWrite(LED_Hall, HIGH);
+    
+    //calibrar bússola
+    while(calib_flag==0){
+        Vector mag = compass.readRaw();
+      
+        // Determine Min / Max values
+        if (mag.XAxis < minX) minX = mag.XAxis;
+        if (mag.XAxis > maxX) maxX = mag.XAxis;
+        if (mag.YAxis < minY) minY = mag.YAxis;
+        if (mag.YAxis > maxY) maxY = mag.YAxis;
+      
+        // Calculate offsets
+        offX = (maxX + minX)/2;
+        offY = (maxY + minY)/2;
+    }
+    digitalWrite(LED_Hall, LOW);
+
 
 }
 
@@ -413,8 +439,17 @@ void move_servo(int nova_pos){
 
 }
 
-void setup() {   
+void setup() {
 
+    //variáveis para calibração da bússola
+    double tempo_calibracao=0;
+    int minX = 0;
+    int maxX = 0;
+    int minY = 0;
+    int maxY = 0;
+    int offX = 126;
+    int offY = -22;    
+    
     Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
@@ -434,24 +469,22 @@ void setup() {
     long_waypoint=lat_long_desvio_waypoint[1];
     desvio_waypoint=lat_long_desvio_waypoint[2];
 
-    //Serial.println("start timers ");
+    Serial.println("start timers ");
     timer0 = timerBegin(0, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer0, &onTimer0, true); // edge (not level) triggered 
     timerAlarmWrite(timer0, 1000, true); // 1000 * 100 us = 0.1 s (10 Hz), autoreload true
-    timerAlarmEnable(timer0); // enable
+ 
 
     timer1 = timerBegin(1, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer1, &onTimer1, true); // edge (not level) triggered 
     timerAlarmWrite(timer1, 50000, true); // 50000 * 100 us = 5 s (0.2Hz), autoreload true
-    timerAlarmEnable(timer1); // enable
 
     timer2 = timerBegin(2, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer2, &onTimer2, true); // edge (not level) triggered 
     timerAlarmWrite(timer2, 500, true); // 500 * 100 us = 0.05 s (20Hz), autoreload true
-    timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
-      //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+      Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);
@@ -466,8 +499,12 @@ void setup() {
     compass.setSamples(HMC5883L_SAMPLES_8);
     
     // Set calibration offset. See HMC5883L_calibration.ino
-    compass.setOffset(BUSS_X_OFFSET , BUSS_Y_OFFSET);
-    
+    compass.setOffset(offX, offY);
+
+    //iniciar timers
+    timerAlarmEnable(timer0); // enable
+    timerAlarmEnable(timer1); // enable
+    timerAlarmEnable(timer2); // enable
     
     //rotina de aquisicao inicial
     acquire_hall();
