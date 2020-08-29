@@ -65,9 +65,9 @@ float sum_erro_buss=0;
 int amostra_buss=0;
 //int buss_X_OFFSET=0;
 //int buss_Y_OFFSET=0;
-//#define BUSS_TIME_CALIB 30000 //em milissegundos (30s)
-int calib_buss=0;
-
+volatile int calib_buss=0;
+volatile int offX = 126;
+volatile int offY = -22; 
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -175,12 +175,40 @@ void IRAM_ATTR onTimer2(){
     flag_buss++;
 
 }
+
+void IRAM_ATTR ioc_buss_calib(){
+
+}
+
 void calib_buss(){
-    
+    int minX = 0;
+    int maxX = 0;
+    int minY = 0;
+    int maxY = 0;
+
     digitalWrite(LED_Hall, HIGH);
     
+    //desabilitar timers
+    TIMG0_T0_EN=0;
+    TIMG0_T1_EN=0;
+    TIMG1_T0_EN=0;
+
     //calibrar bússola
     while(calib_flag==0){
+
+        if (SerialIBT.available()){
+        command_reading=(int) SerialIBT.read();
+        switch(command_reading){
+            case 2: //iniciar calibração
+                calib_flag=1;
+                break;
+
+            case 3: //cancelar calibração
+                
+                break;
+        }       
+            
+        }
         Vector mag = compass.readRaw();
       
         // Determine Min / Max values
@@ -193,9 +221,14 @@ void calib_buss(){
         offX = (maxX + minX)/2;
         offY = (maxY + minY)/2;
     }
+
     digitalWrite(LED_Hall, LOW);
+    compass.setOffset(offX, offY);
 
-
+    //habilitar timers
+    TIMG0_T0_EN=1;
+    TIMG0_T1_EN=1;
+    TIMG1_T0_EN=1;
 }
 
 void acquire_hall(){
@@ -440,16 +473,7 @@ void move_servo(int nova_pos){
 }
 
 void setup() {
-
-    //variáveis para calibração da bússola
-    double tempo_calibracao=0;
-    int minX = 0;
-    int maxX = 0;
-    int minY = 0;
-    int maxY = 0;
-    int offX = 126;
-    int offY = -22;    
-    
+   
     Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
@@ -461,25 +485,21 @@ void setup() {
     servo.write(pos_zero);
 
     //variáveis de estado
-    current_state = 0;
-    //previous_state = 0;
     waypoint_count = 0;
 
     lat_waypoint=lat_long_desvio_waypoint[0];
     long_waypoint=lat_long_desvio_waypoint[1];
     desvio_waypoint=lat_long_desvio_waypoint[2];
 
-    Serial.println("start timers ");
     timer0 = timerBegin(0, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer0, &onTimer0, true); // edge (not level) triggered 
     timerAlarmWrite(timer0, 1000, true); // 1000 * 100 us = 0.1 s (10 Hz), autoreload true
  
-
-    timer1 = timerBegin(1, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
+    timer1 = timerBegin(1, 8000, true);  // timer 1, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer1, &onTimer1, true); // edge (not level) triggered 
     timerAlarmWrite(timer1, 50000, true); // 50000 * 100 us = 5 s (0.2Hz), autoreload true
 
-    timer2 = timerBegin(2, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
+    timer2 = timerBegin(2, 8000, true);  // timer 2, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer2, &onTimer2, true); // edge (not level) triggered 
     timerAlarmWrite(timer2, 500, true); // 500 * 100 us = 0.05 s (20Hz), autoreload true
 
@@ -518,6 +538,8 @@ void setup() {
 
 void loop() {
 
+    int command_reading=0;
+
     SerialBT.println("=======================");
     SerialBT.print("STATE= "); SerialBT.println(current_state);
     SerialBT.print("LAST STATE= "); SerialBT.println(previous_state);
@@ -526,6 +548,15 @@ void loop() {
     SerialBT.print("CTE= "); SerialBT.println(cte);
     SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
 
+    if (SerialIBT.available()){
+        command_reading=(int) SerialIBT.read();
+        switch(command_reading){
+            case 1: //iniciar calibração
+                calib_buss();
+                break;
+        }       
+            
+    }
     
     delay(200);
     //get_buss=1;
