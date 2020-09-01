@@ -181,6 +181,7 @@ void IRAM_ATTR ioc_buss_calib(){
 }
 
 void calib_buss(){
+    int cancel_calib=0;
     int minX = 0;
     int maxX = 0;
     int minY = 0;
@@ -204,7 +205,8 @@ void calib_buss(){
                 break;
 
             case 3: //cancelar calibração
-                
+                calib_flag=1;
+                cancel_calib=1;
                 break;
         }       
             
@@ -221,10 +223,11 @@ void calib_buss(){
         offX = (maxX + minX)/2;
         offY = (maxY + minY)/2;
     }
-
-    digitalWrite(LED_Hall, LOW);
-    compass.setOffset(offX, offY);
-
+    
+    if(cancel_calib==0){
+        digitalWrite(LED_Hall, LOW);
+        compass.setOffset(offX, offY);
+    }
     //habilitar timers
     TIMG0_T0_EN=1;
     TIMG0_T1_EN=1;
@@ -546,7 +549,7 @@ void loop() {
     SerialBT.print("POS= "); SerialBT.println(pos);
     SerialBT.print("SOMAE= "); SerialBT.println(SOMAE);
     SerialBT.print("CTE= "); SerialBT.println(cte);
-    SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
+    //SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
 
     if (SerialIBT.available()){
         command_reading=(int) SerialIBT.read();
@@ -558,8 +561,7 @@ void loop() {
             
     }
     
-    delay(200);
-    //get_buss=1;
+    delay(100);
     
     if(abs(SOMAE)>=100){
       SOMAE=0;  
