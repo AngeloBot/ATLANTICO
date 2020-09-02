@@ -65,7 +65,6 @@ float sum_erro_buss=0;
 int amostra_buss=0;
 //int buss_X_OFFSET=0;
 //int buss_Y_OFFSET=0;
-volatile int calib_buss=0;
 volatile int offX = 126;
 volatile int offY = -22; 
 //=================================================================================
@@ -181,7 +180,9 @@ void IRAM_ATTR ioc_buss_calib(){
 }
 
 void calib_buss(){
+    int command_reading=0;
     int cancel_calib=0;
+    int calib_flag=0;
     int minX = 0;
     int maxX = 0;
     int minY = 0;
@@ -190,25 +191,25 @@ void calib_buss(){
     digitalWrite(LED_Hall, HIGH);
     
     //desabilitar timers
-    TIMG0_T0_EN=0;
-    TIMG0_T1_EN=0;
-    TIMG1_T0_EN=0;
+    timerAlarmDisable(timer0); // enable
+    timerAlarmDisable(timer1); // enable
+    timerAlarmDisable(timer2); // enable
 
     //calibrar bússola
     while(calib_flag==0){
 
-        if (SerialIBT.available()){
-        command_reading=(int) SerialIBT.read();
-        switch(command_reading){
-            case 2: //iniciar calibração
-                calib_flag=1;
-                break;
+        if (SerialBT.available()){
+            command_reading=(int) SerialBT.read();
+            switch(command_reading){
+                case 2: //terminar calibração
+                    calib_flag=1;
+                    break;
 
-            case 3: //cancelar calibração
-                calib_flag=1;
-                cancel_calib=1;
-                break;
-        }       
+                case 3: //cancelar calibração
+                    calib_flag=1;
+                    cancel_calib=1;
+                    break;
+            }       
             
         }
         Vector mag = compass.readRaw();
@@ -222,6 +223,9 @@ void calib_buss(){
         // Calculate offsets
         offX = (maxX + minX)/2;
         offY = (maxY + minY)/2;
+
+        SerialBT.print("X ");SerialBT.println(offX);
+        SerialBT.print("Y ");SerialBT.println(offY);
     }
     
     if(cancel_calib==0){
@@ -229,9 +233,9 @@ void calib_buss(){
         compass.setOffset(offX, offY);
     }
     //habilitar timers
-    TIMG0_T0_EN=1;
-    TIMG0_T1_EN=1;
-    TIMG1_T0_EN=1;
+    timerAlarmEnable(timer0); // enable
+    timerAlarmEnable(timer1); // enable
+    timerAlarmEnable(timer2); // enable
 }
 
 void acquire_hall(){
@@ -369,17 +373,17 @@ void acquire_buss(){
     //rumo_real_int=-rumo_real_int;
     rumo_real-=PI;
     rumo_real += desvio_waypoint*(PI/180);
-    SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
+    //SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
     
     // Correct for heading < 0deg and heading > 360deg
     while (done!=1){
       if (rumo_real < 0){
           rumo_real += 2 * PI;
-          SerialBT.print("rumo real menor: ");SerialBT.println(rumo_real);
+          //SerialBT.print("rumo real menor: ");SerialBT.println(rumo_real);
       }
       else if (rumo_real > 2 * PI){
           rumo_real -= 2 * PI;
-          SerialBT.print("rumo real maior: ");SerialBT.println(rumo_real);
+          //SerialBT.print("rumo real maior: ");SerialBT.println(rumo_real);
       }
       else{
         done=1;
@@ -551,10 +555,14 @@ void loop() {
     SerialBT.print("CTE= "); SerialBT.println(cte);
     //SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
 
-    if (SerialIBT.available()){
-        command_reading=(int) SerialIBT.read();
+    if (SerialBT.available()){
+        
+        command_reading=SerialBT.read();
+        Serial.print("command_reading = "); Serial.println(command_reading);
+
         switch(command_reading){
             case 1: //iniciar calibração
+                Serial.println("Calibrating");
                 calib_buss();
                 break;
         }       
