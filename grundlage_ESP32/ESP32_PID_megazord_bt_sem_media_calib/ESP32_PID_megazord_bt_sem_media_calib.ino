@@ -175,10 +175,6 @@ void IRAM_ATTR onTimer2(){
 
 }
 
-void IRAM_ATTR ioc_buss_calib(){
-
-}
-
 void calib_buss(){
     int command_reading=0;
     int cancel_calib=0;
