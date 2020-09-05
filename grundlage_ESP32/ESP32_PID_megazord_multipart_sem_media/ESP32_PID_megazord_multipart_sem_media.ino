@@ -1,3 +1,4 @@
+
 #include <Wire.h>
 #include <HMC5883L.h>
 
@@ -6,32 +7,20 @@
 
 #include <ESP32_Servo.h>
 
-//configuração do bluetooth
-#include "BluetoothSerial.h"
-
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
-BluetoothSerial SerialBT;
+#include 'acquire_buss.h'
+#include 'acquire_GPS.h'
+#include 'acquire_hall.h'
+#include 'controller_tools.h'
+#include 'supp_tools.h'
+#include 'def_system.h'
 
 //configuração servo
 Servo servo;
 int pos=0;
 int nova_pos=0;
-#define pos_zero 90 //define posição zero
-#define servoPin 18 //define pin do servo
-#define leme_min -30 //max de -30 graus
-#define leme_max 30 //max de 30 graus
-#define servo_min 30
-#define servo_max 150
-#define delta_servo 45 //variação máxima de 45 graus entre cada movimento de servo
 
 //PID
 double SOMAE=0;
-#define Kp 2.0
-#define Ki 0.05
-#define Kd 0.5
 float timer_PID=0;
 float E=0;
 float v_yaw=0;
@@ -43,11 +32,7 @@ int current_state = 0;
 int previous_state = 0;
 
 //erro de rumo
-#define lambda_rumo 2 //poço de erro em relação ao rumo ideal
-#define lambda_jibe 10 //poço de erro de rumo em relação ao rumo ideal ao dar jibe
-#define ang_jibe 110 //diferença entre rumo real e ideal para realizar o jibe
 int rumo_margin_flag=0; //1-> rumo está dentro da margem de erro estipulada | 0->não está dentro
-#define constante 10
 
 //variáveis para transição para o estado 13
 double deltat = 10000; //em ms
@@ -63,10 +48,6 @@ int get_buss=0;
 float sum_buss=0;
 float sum_erro_buss=0;
 int amostra_buss=0;
-//int buss_X_OFFSET=0;
-//int buss_Y_OFFSET=0;
-volatile int offX = 126;
-volatile int offY = -22; 
 //=================================================================================
 
 TinyGPSPlus gps;
@@ -84,8 +65,6 @@ double lat_barco,long_barco;
 
 double lat_waypoint, long_waypoint;
 float desvio_waypoint;
-#define waypoint_radius 3 //em metros
-#define waypoint_num 2 //numero de waypoints na lista
 
 //lista de waypoints com respectivos desvios magnéticos
 //float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.42, -23.554985, -46.876259, -21.42};
@@ -111,26 +90,14 @@ volatile int counter1=0; //gps
 volatile int counter2=0; //buss
 //=================================================================================
 
-#define LED_Hall 2
-#define LED_GPS 4
-#define LED_Buss 5
-
 //variáveis para gravar leitura analógica dos pins dos sensores hall
 int statusLEFT = 0;
 int statusRIGHT = 0;
 int statusFLEFT = 0;
 int statusFRIGHT = 0;
-//pin para input proveniente sensores
-#define pinLEFT 34
-#define pinRIGHT 35 
-#define pinFLEFT 32
-#define pinFRIGHT 33
 
 //variável que resume estado de todos os hall
 int status_Hall =B0000;
-//variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
-#define maxHallSignal 30
-
 
 void IRAM_ATTR onTimer0(){
   
@@ -176,314 +143,7 @@ void IRAM_ATTR onTimer2(){
 
 }
 
-void calib_buss(){
-    int command_reading=0;
-    int cancel_calib=0;
-    int calib_flag=0;
-    int minX = 0;
-    int maxX = 0;
-    int minY = 0;
-    int maxY = 0;
-
-    digitalWrite(LED_Hall, HIGH);
-    
-    //desabilitar timers
-    timerAlarmDisable(timer0); // enable
-    timerAlarmDisable(timer1); // enable
-    timerAlarmDisable(timer2); // enable
-
-    //calibrar bússola
-    while(calib_flag==0){
-
-        if (SerialBT.available()){
-            command_reading=(int) SerialBT.read();
-            switch(command_reading){
-                case 2: //terminar calibração
-                    calib_flag=1;
-                    break;
-
-                case 3: //cancelar calibração
-                    calib_flag=1;
-                    cancel_calib=1;
-                    break;
-            }       
-            
-        }
-        Vector mag = compass.readRaw();
-      
-        // Determine Min / Max values
-        if (mag.XAxis < minX) minX = mag.XAxis;
-        if (mag.XAxis > maxX) maxX = mag.XAxis;
-        if (mag.YAxis < minY) minY = mag.YAxis;
-        if (mag.YAxis > maxY) maxY = mag.YAxis;
-      
-        // Calculate offsets
-        offX = (maxX + minX)/2;
-        offY = (maxY + minY)/2;
-
-        SerialBT.print("X ");SerialBT.println(offX);
-        SerialBT.print("Y ");SerialBT.println(offY);
-    }
-    
-    if(cancel_calib==0){
-        digitalWrite(LED_Hall, LOW);
-        compass.setOffset(offX, offY);
-    }
-    //habilitar timers
-    timerAlarmEnable(timer0); // enable
-    timerAlarmEnable(timer1); // enable
-    timerAlarmEnable(timer2); // enable
-}
-
-void acquire_hall(){
-    statusRIGHT = analogRead(pinRIGHT);
-    statusLEFT = analogRead(pinLEFT);
-    statusFRIGHT = analogRead(pinFRIGHT);
-    statusFLEFT = analogRead(pinFLEFT);
-
-    if ( statusFRIGHT < maxHallSignal){
-        status_Hall |= 1;
-    }
-    else{
-        status_Hall &= ~1;
-    }
-    if ( statusRIGHT < maxHallSignal){
-        status_Hall |= (1<<1);
-    }
-    else{
-        status_Hall &= ~(1<<1);
-    }
-    if ( statusLEFT < maxHallSignal){
-        status_Hall |= (1<<2);
-    }
-    else{
-        status_Hall &= ~(1<<2);
-    }
-    if ( statusFLEFT < maxHallSignal){
-        status_Hall |= (1<<3);
-    }
-    else{
-        status_Hall &= ~(1<<3);
-    }
-
-    SerialBT.print("HALL=");
-    switch(status_Hall){
-      
-      case 0:
-      SerialBT.println("0000");
-      break;
-      
-      case 1:
-      SerialBT.println("0001");
-      break;
-
-      
-      case 2:
-      SerialBT.println("0010");
-      break;
-
-      
-      case 3:
-      SerialBT.println("0011");
-      break;
-
-      
-      case 4:
-      SerialBT.println("0100");
-      break;
-
-      
-      case 6:
-      SerialBT.println("0110");
-      break;
-
-      case 8:
-      SerialBT.println("1000");
-      break;
-
-      case 12:
-      SerialBT.println("1100");
-      break;
-
-    }
-    //Serial.print("HALL=");Serial.println(status_Hall);
-    flag_hall--;
-
-}
-
-void acquire_GPS(){
-    
-    double dist_waypoint;
-
-    while (SerialGPS.available() > 0) {
-        gps.encode(SerialGPS.read());
-    }
-    
-    SerialBT.print("SATELITES= ");SerialBT.println(gps.satellites.value());
-
-    if (gps.satellites.value() >= 4) {
-    
-        lat_barco=gps.location.lat();
-        long_barco=gps.location.lng();
-        SerialBT.print("LAT=");  SerialBT.println(lat_barco, 6);
-        SerialBT.print("LONG="); SerialBT.println(long_barco, 6);
-        
-
-        dist_waypoint=(unsigned long)TinyGPSPlus::distanceBetween(lat_barco,long_barco,lat_waypoint,long_waypoint); //m
-        
-        SerialBT.print("Dist ");SerialBT.println(dist_waypoint);
-
-        rumo_ideal =(double)TinyGPSPlus::courseTo(lat_barco,long_barco,lat_waypoint,long_waypoint);
-        SerialBT.print("Course ");SerialBT.println(rumo_ideal);
-
-        if (waypoint_radius > dist_waypoint){
-            waypoint_count += 1;
-            if(waypoint_count==waypoint_num-1){
-                waypoint_count=0;
-            }
-            lat_waypoint=lat_long_desvio_waypoint[waypoint_count*3];
-            long_waypoint=lat_long_desvio_waypoint[waypoint_count*3+1];
-            desvio_waypoint=lat_long_desvio_waypoint[waypoint_count*3+2];
-            acquire_GPS();
-         }
-        
-    }
-
-    flag_gps--;
-
-}
-void acquire_buss(){
-
-    
-    int done=0;
-    
-
-    Vector norm = compass.readNormalize();
-    // Calculate heading
-    float rumo_real = atan2(norm.YAxis, -norm.XAxis);
-    // Set declination angle on your location and fix heading
-    // You can find your declination on: http://magnetic-declination.com/
-    // (+) Positive or (-) for negative
-    // For Bytom / Poland declination angle is 4'26E (positive)
-    // For Barueri / Brazil declination angle is 21'22W(negative)
-    // For Santo Amaro / Brazil declination angle is 21'23W(negative)
-    // For Taboao da Serra / Brazil declination angle is 21'25W(negative)
-    // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-
-    //rumo_real_int=-rumo_real_int;
-    rumo_real-=PI;
-    rumo_real += desvio_waypoint*(PI/180);
-    //SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
-    
-    // Correct for heading < 0deg and heading > 360deg
-    while (done!=1){
-      if (rumo_real < 0){
-          rumo_real += 2 * PI;
-          //SerialBT.print("rumo real menor: ");SerialBT.println(rumo_real);
-      }
-      else if (rumo_real > 2 * PI){
-          rumo_real -= 2 * PI;
-          //SerialBT.print("rumo real maior: ");SerialBT.println(rumo_real);
-      }
-      else{
-        done=1;
-        }
-    }
-    // Converter para graus e guardar na variável apropriada
-    rumo_real = rumo_real * 180/PI;
-    //rumo_real_int = rumo_real_int * 180/PI;
-    
-    erro_rumo=calc_erro_rumo(rumo_ideal);
-    
-    flag_buss--;
-    
-    SerialBT.print("rumo real: ");SerialBT.println(rumo_real);
-    SerialBT.print("erro rumo: ");SerialBT.println(erro_rumo);
-
-}
-
-double calc_erro_rumo(double rumo){
-    
-    float erro=rumo-rumo_real;
-
-    //ajeitar sinal para menor mudança de rumo
-    if (abs(erro) <= 180 ) {
-    erro = erro;
-    }
-
-    else if(((erro) > 0 && abs(erro) > 180)){
-    erro -=360;
-    }
-    
-    else if(((erro) < 0 && abs(erro) > 180)){
-    erro += 360;
-    }
-    
-    if(abs(erro) < lambda_rumo){
-        rumo_margin_flag=1;
-    }
-    else{
-        rumo_margin_flag=0;
-    }
-    return erro;
-}
-
-int leme_ok(int pos_leme){
-
-    if(pos_leme<leme_min){
-        return leme_min;
-    }
-    else if(pos_leme>leme_max){
-        return leme_max;
-    }
-    else{
-        return pos_leme;
-    }
-}
-
-int calc_PID(float E){
-
-    int now=millis();
-    int heap=now-timer_PID;
-    timer_PID=now;
-    
-    SOMAE+=E*heap/1000;
-
-    //velocidade angular em grau/s
-    v_yaw=(rumo_real-ultimo_rumo)*1000/heap;
-
-    return map(leme_ok(Kp*E+Ki*SOMAE-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
-}
-int calc_PD(float E){
-
-    int now=millis();
-    int heap=now-timer_PID;
-    timer_PID=now;
-    
-    //velocidade angular em grau/s
-    v_yaw=(rumo_real-ultimo_rumo)*1000/heap;
-
-    return map(leme_ok(Kp*E-Kd*v_yaw),leme_min,leme_max,servo_min,servo_max);
-}
-
-void move_servo(int nova_pos){
-
-    if(nova_pos-pos > delta_servo){
-        pos=+delta_servo;
-    }
-    else if(nova_pos-pos < -delta_servo){
-        pos-=delta_servo;
-    }
-    else{
-        pos=nova_pos;
-    }
-    servo.write(pos);
-
-
-}
-
 void setup() {
-   
     Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
@@ -495,23 +155,29 @@ void setup() {
     servo.write(pos_zero);
 
     //variáveis de estado
+    current_state = 0;
+    //previous_state = 0;
     waypoint_count = 0;
 
     lat_waypoint=lat_long_desvio_waypoint[0];
     long_waypoint=lat_long_desvio_waypoint[1];
     desvio_waypoint=lat_long_desvio_waypoint[2];
 
+    Serial.println("start timers ");
     timer0 = timerBegin(0, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer0, &onTimer0, true); // edge (not level) triggered 
     timerAlarmWrite(timer0, 1000, true); // 1000 * 100 us = 0.1 s (10 Hz), autoreload true
- 
-    timer1 = timerBegin(1, 8000, true);  // timer 1, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
+    timerAlarmEnable(timer0); // enable
+
+    timer1 = timerBegin(1, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer1, &onTimer1, true); // edge (not level) triggered 
     timerAlarmWrite(timer1, 50000, true); // 50000 * 100 us = 5 s (0.2Hz), autoreload true
+    timerAlarmEnable(timer1); // enable
 
-    timer2 = timerBegin(2, 8000, true);  // timer 2, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
+    timer2 = timerBegin(2, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer2, &onTimer2, true); // edge (not level) triggered 
     timerAlarmWrite(timer2, 500, true); // 500 * 100 us = 0.05 s (20Hz), autoreload true
+    timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
       Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
@@ -527,52 +193,29 @@ void setup() {
 
     // Set number of samples averaged
     compass.setSamples(HMC5883L_SAMPLES_8);
-    
-    // Set calibration offset. See HMC5883L_calibration.ino
-    compass.setOffset(offX, offY);
 
-    //iniciar timers
-    timerAlarmEnable(timer0); // enable
-    timerAlarmEnable(timer1); // enable
-    timerAlarmEnable(timer2); // enable
-    
+    // Set calibration offset. See HMC5883L_calibration.ino
+    compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+
     //rotina de aquisicao inicial
     acquire_hall();
     acquire_GPS();
     acquire_buss();
     timer_PID=millis();
-    
-    //iniciar bluetooth definindo nome do dispositivo
-    SerialBT.begin("ESP32_veleiro_autonomo");
+    float sum_rumo=0;
+
 }
 
 void loop() {
 
-    int command_reading=0;
-
-    SerialBT.println("=======================");
-    SerialBT.print("STATE= "); SerialBT.println(current_state);
-    SerialBT.print("LAST STATE= "); SerialBT.println(previous_state);
-    SerialBT.print("POS= "); SerialBT.println(pos);
-    SerialBT.print("SOMAE= "); SerialBT.println(SOMAE);
-    SerialBT.print("CTE= "); SerialBT.println(cte);
-    //SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
-
-    if (SerialBT.available()){
-        
-        command_reading=SerialBT.read();
-        Serial.print("command_reading = "); Serial.println(command_reading);
-
-        switch(command_reading){
-            case 1: //iniciar calibração
-                Serial.println("Calibrating");
-                calib_buss();
-                break;
-        }       
-            
-    }
-    
-    delay(100);
+    Serial.println("=======================");
+    Serial.print("STATE= "); Serial.println(current_state);
+    Serial.print("LAST STATE= "); Serial.println(previous_state);
+    Serial.print("POS= "); Serial.println(pos);
+    Serial.print("SOMAE= "); Serial.println(SOMAE);
+    Serial.print("CTE= "); Serial.println(cte);
+    Serial.print("V_ang= "); Serial.println(v_yaw);
+    delay(200);
     
     if(abs(SOMAE)>=100){
       SOMAE=0;  
