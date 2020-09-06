@@ -1,7 +1,7 @@
 
 #include <Arduino.h>
-#include 'def_system.h'
-#include 'acquire_hall.h'
+#include "def_system.h"
+#include "acquire_hall.h"
 
 void acquire_hall(void){
     statusRIGHT = analogRead(pinRIGHT);

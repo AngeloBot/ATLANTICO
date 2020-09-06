@@ -1,13 +1,14 @@
 #include <HardwareSerial.h>
 #include <Arduino.h>
 #include <HMC5883L.h>
-#include 'def_system.h'
-#include 'acquire_buss.h'
-#include 'supp_tools.h'
+#include "def_system.h"
+#include "acquire_buss.h"
+#include "supp_tools.h"
 
 void acquire_buss(){
     int done=0;
 
+    ultimo_rumo=rumo_real;
     Vector norm = compass.readNormalize();
     // Calculate heading
     rumo_real = atan2(norm.YAxis, -norm.XAxis);

@@ -7,12 +7,12 @@
 
 #include <ESP32_Servo.h>
 
-#include 'acquire_buss.h'
-#include 'acquire_GPS.h'
-#include 'acquire_hall.h'
-#include 'controller_tools.h'
-#include 'supp_tools.h'
-#include 'def_system.h'
+#include "acquire_buss.h"
+#include "acquire_GPS.h"
+#include "acquire_hall.h"
+#include "controller_tools.h"
+#include "supp_tools.h"
+#include "def_system.h"
 
 //configuração servo
 Servo servo;
@@ -21,7 +21,7 @@ int nova_pos=0;
 
 //PID
 double SOMAE=0;
-float timer_PID=0;
+int timer_PID=0;
 float E=0;
 float v_yaw=0;
 float ultimo_rumo=0;
@@ -215,6 +215,7 @@ void loop() {
     Serial.print("SOMAE= "); Serial.println(SOMAE);
     Serial.print("CTE= "); Serial.println(cte);
     Serial.print("V_ang= "); Serial.println(v_yaw);
+    Serial.print("rumo= "); Serial.println(rumo_real);
     delay(200);
     
     if(abs(SOMAE)>=100){

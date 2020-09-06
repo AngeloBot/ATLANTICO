@@ -6,7 +6,7 @@
 #include <HardwareSerial.h> 
 
 extern double lat_long_desvio_waypoint[6];
-extern int flag_gps;
+extern volatile int flag_gps;
 extern HardwareSerial SerialGPS;
 extern TinyGPSPlus gps;
 extern int waypoint_count;
