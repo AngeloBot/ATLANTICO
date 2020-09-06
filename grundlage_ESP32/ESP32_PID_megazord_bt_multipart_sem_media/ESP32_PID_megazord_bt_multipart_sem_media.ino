@@ -13,6 +13,17 @@
 #include "controller_tools.h"
 #include "supp_tools.h"
 #include "def_system.h"
+#include "bt_print.h"
+#include "serial_print.h"
+
+//configuração do bluetooth
+#include "BluetoothSerial.h"
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+
+BluetoothSerial SerialBT;
 
 //configuração servo
 Servo servo;
@@ -144,7 +155,8 @@ void IRAM_ATTR onTimer2(){
 }
 
 void setup() {
-    Serial.begin(115200);
+    
+    //Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
@@ -163,7 +175,7 @@ void setup() {
     long_waypoint=lat_long_desvio_waypoint[1];
     desvio_waypoint=lat_long_desvio_waypoint[2];
 
-    Serial.println("start timers ");
+    //Serial.println("start timers ");
     timer0 = timerBegin(0, 8000, true);  // timer 0, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 8000 -> 100000 ns = 100 us, countUp
     timerAttachInterrupt(timer0, &onTimer0, true); // edge (not level) triggered 
     timerAlarmWrite(timer0, 1000, true); // 1000 * 100 us = 0.1 s (10 Hz), autoreload true
@@ -180,7 +192,8 @@ void setup() {
     timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
-      Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+      //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+        SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);
@@ -197,6 +210,9 @@ void setup() {
     // Set calibration offset. See HMC5883L_calibration.ino
     compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
 
+    //iniciar bluetooth definindo nome do dispositivo
+    SerialBT.begin("ESP32_veleiro_autonomo");
+    
     //rotina de aquisicao inicial
     acquire_hall();
     acquire_GPS();
@@ -208,15 +224,9 @@ void setup() {
 
 void loop() {
 
-    Serial.println("=======================");
-    Serial.print("STATE= "); Serial.println(current_state);
-    Serial.print("LAST STATE= "); Serial.println(previous_state);
-    Serial.print("POS= "); Serial.println(pos);
-    Serial.print("SOMAE= "); Serial.println(SOMAE);
-    Serial.print("CTE= "); Serial.println(cte);
-    Serial.print("V_ang= "); Serial.println(v_yaw);
-    Serial.print("rumo= "); Serial.println(rumo_real);
-    delay(200);
+    bt_alt_report();
+
+    delay(100);
     
     if(abs(SOMAE)>=100){
       SOMAE=0;  
@@ -252,47 +262,12 @@ void loop() {
                     previous_state = current_state;
                     current_state=4; //ir para contra por BE
                 }
-//                else if(erro_rumo < -lambda_rumo && status_Hall==B0000){
-//                    previous_state = current_state;
-//                    current_state=1; //ir para ajeitar BB
-//                }
-//                else if(erro_rumo > lambda_rumo && status_Hall==B0000){
-//                    previous_state = current_state;
-//                    current_state=2; //ir para ajeitar BE
-//                }
+
                 else{
                   previous_state = current_state;
                 }
                 
                 break;
-
-//            case 1: //ajeitar BB---------------------------------------------------------------------------------------------------
-//
-//                pos=calc_PID(erro_rumo);
-//                servo.write(pos);
-//
-//                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
-//                    previous_state = current_state;
-//                    current_state=0; //ir para à favor
-//                }
-//                else{
-//                  previous_state = current_state;
-//                }
-//                break;
-//
-//            case 2: //ajeitar BE---------------------------------------------------------------------------------------------------
-//
-//                pos=calc_PID(erro_rumo);
-//                servo.write(pos);
-//
-//                if( abs(erro_rumo) < lambda_rumo || status_Hall!=B0000){
-//                    previous_state = current_state;
-//                    current_state=0; //ir para à favor
-//                }
-//                else{
-//                  previous_state = current_state;
-//                }
-//                break;
 
             case 3: //contra por BB------------------------------------------------------------------------------------------------
                 
