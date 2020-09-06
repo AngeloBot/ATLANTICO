@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include "def_system.h"
-#include "bt_print.h"
+#include "bt_report.h"
 #include "BluetoothSerial.h"
 
 void bt_report(void){

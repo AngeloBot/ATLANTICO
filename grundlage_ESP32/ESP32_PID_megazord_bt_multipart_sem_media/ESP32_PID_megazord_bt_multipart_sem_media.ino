@@ -156,7 +156,7 @@ void IRAM_ATTR onTimer2(){
 
 void setup() {
     
-    //Serial.begin(115200);
+    Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
