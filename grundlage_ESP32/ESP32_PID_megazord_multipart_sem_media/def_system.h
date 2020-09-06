@@ -40,6 +40,6 @@
 //mostradores
 #define LED_Hall 2 //builtin led
 #define LED_GPS 4
-#define LED_Buss 5
+#define LED_Buss 19
 
 #endif //DEF_SYSTEM_H_INCLUDED
