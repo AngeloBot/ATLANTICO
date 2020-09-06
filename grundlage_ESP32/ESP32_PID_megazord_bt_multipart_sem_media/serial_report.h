@@ -10,7 +10,10 @@ extern double SOMAE;
 extern int cte;
 extern float v_yaw;
 extern float rumo_real;
+extern int status_Hall;
 
 void serial_report(void);
+void serial_hall_print(void);
+void serial_alt_report(void);
 
 #endif //SERIAL_PRINT_H_INCLUDED

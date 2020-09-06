@@ -11,8 +11,10 @@ extern double SOMAE;
 extern int cte;
 extern float v_yaw;
 extern float rumo_real;
+extern int status_Hall;
 
 void bt_report(void);
 void bt_alt_report(void);
+void bt_hall_print(void);
 
 #endif //BT_PRINT_H_INCLUDED
