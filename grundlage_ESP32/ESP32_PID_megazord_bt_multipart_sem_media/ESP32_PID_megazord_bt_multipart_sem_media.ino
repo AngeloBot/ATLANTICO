@@ -13,8 +13,8 @@
 #include "controller_tools.h"
 #include "supp_tools.h"
 #include "def_system.h"
-#include "bt_print.h"
-#include "serial_print.h"
+#include "bt_report.h"
+#include "serial_report.h"
 
 //configuração do bluetooth
 #include "BluetoothSerial.h"
