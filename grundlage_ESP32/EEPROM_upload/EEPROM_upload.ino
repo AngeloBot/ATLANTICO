@@ -2,27 +2,36 @@
 
 //sketch para carregar valor dados na eeprom
 //int -> 4 bytes
-int offX= 171;
-int offY= -189;
+int offX= 500;
+int offY= -400;
 
 
 int X=0;
 int Y=0;
 
-void multibyte_write(int num_byte, int value , int address){
+void multibyte_write(int num_byte, int num_value , int address){
     //byte mais significativo é gravado no endereço dado de argumento e os
     //bytes subsequentes (em ordem decrescente de significância)
     //nos próximos endereços em ordem crescente
     
-    int value_piece=0;
-
-    for (i=0;i<num_byte;i++){
+    int num_value_piece=0;
+    int cleaner=pow(2,8)-1;
+    Serial.println(cleaner,BIN);
+    Serial.println(num_value,BIN);
+    Serial.println("===================");
+    
+    for (int i=0;i<num_byte;i++){
         
-        value_piece= ((value >> 8*(num_byte-i-1)) & ((int) (pow(2,num_byte*8+1)-1)<<8)) 
-        EEPROM.write(address+i,value_piece);
-        Serial.println(value_piece,BIN);
+        num_value_piece= (num_value >> 8*(num_byte-i-1));
+        Serial.println(num_value_piece,BIN);
+        num_value_piece &= ((int) cleaner);
+        
+        Serial.println(num_value_piece,BIN);
+        Serial.println("===================");
+        
+        EEPROM.write(address+i,num_value_piece);
     }
-
+    
 }
 
 int multibyte_read(int num_byte, int address){
@@ -30,15 +39,22 @@ int multibyte_read(int num_byte, int address){
     //do argumento da função e os bytes subsequentes estão nos endereços seguintes
     //em ordem crescente
 
-    int value=0;
+    int read_value=EEPROM.read(address);
+    Serial.println(read_value,BIN);
+    int num_value=pow(2,(num_byte-1)*8);
+    Serial.println(num_value,BIN);
+    num_value=num_value*read_value;
 
-    for (i=0;i<num_byte;i++){
-        
-        value=value + pow(2,num_byte-i-1)*EEPROM.read(address+i);
+    for (int i=1;i<num_byte;i++){
+            
+        int read_value=EEPROM.read(address+i);
+        Serial.println(read_value,BIN);
+        num_value=num_value + pow(2,(num_byte-1-i)*8)*read_value;
+        Serial.println(num_value,BIN);
     }
-    Serial.println(value);
+    Serial.println(num_value);
 
-    return value;
+    return num_value;
 }
 
 void setup() {
@@ -81,12 +97,16 @@ void setup() {
   EEPROM.commit();
   */
   Serial.begin(115200);
+  EEPROM.begin(512);
 
+  
   multibyte_write(4,offX,0x01);
   multibyte_write(4,offY,0x05);
 
-  Serial.print((int) multibyte_read(4,0x01));
-  Serial.print((int) multibyte_read(4,0x05));
+  EEPROM.commit();
+  
+  Serial.println((int) multibyte_read(4,0x01));
+  Serial.println((int) multibyte_read(4,0x05));
 }
 
 void loop() {
