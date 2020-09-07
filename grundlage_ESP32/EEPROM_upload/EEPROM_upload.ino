@@ -1,7 +1,7 @@
 #include <EEPROM.h>
 
 //sketch para carregar valor dados na eeprom
-
+//int -> 4 bytes
 int offX= 171;
 int offY= -189;
 
@@ -9,16 +9,30 @@ int offY= -189;
 int X=0;
 int Y=0; 
 
+void divide_number(){
+  
+  
+  }
+
 void setup() {
   
-  int offX_H = (offX >> 8);
-  int offX_L = offX & pow(2,9)-1;
-  int offY_H = (offY >> 8);
-  int offY_L = offY & pow(2,9)-1;
+  int offX_H = (offX >> 16);
+  int offX_L = offX & (int) pow(2,17)-1;
+  int offY_H = (offY >> 16);
+  int offY_L = offY & (int) pow(2,17)-1;
   Serial.begin(115200);
 
-  X=pow(2,8)*offX_H+offX_L;
-  Y=pow(2,8)*offY_H+offY_L;
+  Serial.println(offX,BIN);
+  Serial.println(offY,BIN);
+  
+  Serial.println(offX_H,BIN);
+  Serial.println(offX_L,BIN);
+  
+  Serial.println(offY_H,BIN);
+  Serial.println(offY_L,BIN);
+  
+  X=pow(2,17)*offX_H+offX_L;
+  Y=pow(2,17)*offY_H+offY_L;
   Serial.println(X);
   Serial.println(Y);
 
@@ -41,6 +55,8 @@ void setup() {
 }
 
 void loop() {
-  
-  delay(1000);
+
+  if (Serial.available()){
+    
+    }
 }
