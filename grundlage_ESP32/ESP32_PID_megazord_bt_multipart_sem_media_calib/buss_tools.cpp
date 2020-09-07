@@ -2,8 +2,9 @@
 #include <Arduino.h>
 #include <HMC5883L.h>
 #include "def_system.h"
-#include "acquire_buss.h"
+#include "buss_tools.h"
 #include "supp_tools.h"
+#include "BluetoothSerial.h"
 
 void acquire_buss(){
     int done=0;
@@ -51,4 +52,64 @@ void acquire_buss(){
     //Serial.print("rumo real: ");Serial.println(rumo_real);
     //Serial.print("erro rumo: ");Serial.println(erro_rumo);
 
+}
+
+void calib_buss(void){
+
+    char command_reading=0;
+    int calib_flag=0;
+    int minX = 0;
+    int maxX = 0;
+    int minY = 0;
+    int maxY = 0;
+
+    digitalWrite(LED_Hall, HIGH);
+    
+    //desabilitar timers
+    timerAlarmDisable(timer0); // enable
+    timerAlarmDisable(timer1); // enable
+    timerAlarmDisable(timer2); // enable
+
+    //calibrar bússola
+    while(calib_flag==0){
+
+        if (SerialBT.available()){
+            command_reading=(char) SerialBT.read();
+            switch(command_reading){
+                case 'f': //finalizar calibração
+                    calib_flag=1;
+                    break;
+
+                case 'c': //cancelar calibração
+                    calib_flag=2;
+                    break;
+            }       
+            
+        }
+
+        Vector mag = compass.readRaw();
+    
+        // Determine Min / Max values
+        if (mag.XAxis < minX) minX = mag.XAxis;
+        if (mag.XAxis > maxX) maxX = mag.XAxis;
+        if (mag.YAxis < minY) minY = mag.YAxis;
+        if (mag.YAxis > maxY) maxY = mag.YAxis;
+    
+        // Calculate offsets
+        offX = (maxX + minX)/2;
+        offY = (maxY + minY)/2;
+
+        SerialBT.print("X\t");SerialBT.println(offX);
+        SerialBT.print("\tY\t");SerialBT.println(offY);
+    }
+
+    if(calib_flag==2){
+        digitalWrite(LED_Hall, LOW);
+        compass.setOffset(offX, offY);
+    }
+
+    //habilitar timers
+    timerAlarmEnable(timer0); // enable
+    timerAlarmEnable(timer1); // enable
+    timerAlarmEnable(timer2); // enable
 }

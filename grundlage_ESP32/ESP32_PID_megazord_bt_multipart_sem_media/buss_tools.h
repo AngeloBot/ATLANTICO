@@ -1,5 +1,5 @@
-#ifndef ACQUIRE_BUSS_H_INCLUDED
-#define ACQUIRE_BUSS_H_INCLUDED
+#ifndef BUSS_TOOLS_H_INCLUDED
+#define BUSS_TOOLS_H_INCLUDED
 
 #include <HMC5883L.h>
 
@@ -12,4 +12,4 @@ extern float ultimo_rumo;
 extern HMC5883L compass;
 
 void acquire_buss(void);
-#endif // ACQUIRE_HALL_INCLUDE
+#endif // BUSS_TOOLS_INCLUDE

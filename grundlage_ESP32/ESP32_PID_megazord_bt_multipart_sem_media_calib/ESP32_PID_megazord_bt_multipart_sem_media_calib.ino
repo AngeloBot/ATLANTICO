@@ -224,8 +224,20 @@ void setup() {
 
 void loop() {
 
+    
     bt_alt_report();
 
+    if (SerialBT.available()){
+    
+        command_reading=SerialBT.read();
+        
+        switch(command_reading){
+            case 'i': //iniciar calibração
+                SerialBT.println("Calibrating");
+                calib_buss();
+                break;
+        }
+    }
     delay(100);
     
     if(abs(SOMAE)>=100){
