@@ -24,6 +24,10 @@
 //buss
 #define BUSS_X_OFFSET 171
 #define BUSS_Y_OFFSET -189
+//endereços de parâmetros na eeprom
+#define EEPROM_off_flag 0x01
+#define EEPROM_offX 0x02
+#define EEPROM_offY 0x03
 
 //GPS
 #define waypoint_radius 3 //em metros

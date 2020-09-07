@@ -1,6 +1,9 @@
 
 #include <Wire.h>
+#include <EEPROM.h>
+
 #include <HMC5883L.h>
+
 
 #include <TinyGPS++.h> 
 #include <HardwareSerial.h> 
@@ -208,7 +211,12 @@ void setup() {
     compass.setSamples(HMC5883L_SAMPLES_8);
 
     // Set calibration offset. See HMC5883L_calibration.ino
-    compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+    if((int) EEPROM.read(EEPROM_off_flag)== 1){//valor válido de offset já guardado 
+        compass.setOffset(EEPROM.read(EEPROM_offX),EEPROM.read(EEPROM_offY));
+    }
+    else{//usar valor do sketch
+        compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+    }
 
     //iniciar bluetooth definindo nome do dispositivo
     SerialBT.begin("ESP32_veleiro_autonomo");
