@@ -62,7 +62,9 @@ void calib_buss(void){
     int maxX = 0;
     int minY = 0;
     int maxY = 0;
-
+    int offX = 0;
+    int offY = 0;
+    
     digitalWrite(LED_Hall, HIGH);
     
     //desabilitar timers
@@ -99,8 +101,8 @@ void calib_buss(void){
         offX = (maxX + minX)/2;
         offY = (maxY + minY)/2;
 
-        SerialBT.print("X\t");SerialBT.println(offX);
-        SerialBT.print("\tY\t");SerialBT.println(offY);
+        //SerialBT.print("X\t");SerialBT.println(offX);
+        //SerialBT.print("\tY\t");SerialBT.println(offY);
     }
 
     if(calib_flag==2){

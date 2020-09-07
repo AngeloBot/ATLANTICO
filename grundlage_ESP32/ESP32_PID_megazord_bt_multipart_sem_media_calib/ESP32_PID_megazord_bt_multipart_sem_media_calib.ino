@@ -224,6 +224,7 @@ void setup() {
 
 void loop() {
 
+    char command_reading;
     
     bt_alt_report();
 
