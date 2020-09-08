@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include <EEPROM.h>
 
+#include "EEPROM_handler.h"
+
 #include <HMC5883L.h>
 
 
@@ -159,6 +161,9 @@ void IRAM_ATTR onTimer2(){
 
 void setup() {
     
+    int offX;
+    int offY;
+
     Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
@@ -195,9 +200,12 @@ void setup() {
     timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
-      //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-        SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
+        //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+        //SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
+        digitalWrite(LED_Hall,HIGH);
     }
+    digitalWrite(LED_Hall,LOW);
+
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);
 
@@ -210,17 +218,23 @@ void setup() {
     // Set number of samples averaged
     compass.setSamples(HMC5883L_SAMPLES_8);
 
-    // Set calibration offset. See HMC5883L_calibration.ino
-    if((int) EEPROM.read(EEPROM_off_flag)== 1){//valor válido de offset já guardado 
-        compass.setOffset(EEPROM.read(EEPROM_offX),EEPROM.read(EEPROM_offY));
-    }
-    else{//usar valor do sketch
-        compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
-    }
-
     //iniciar bluetooth definindo nome do dispositivo
     SerialBT.begin("ESP32_veleiro_autonomo");
     
+    // Set calibration offset. See HMC5883L_calibration.ino
+    if((int) EEPROM.read(EEPROM_off_flag)== 1){//valor válido de offset já guardado 
+        offX=multibyte_read(EEPROM_num_size,EEPROM_offX);
+        offY=multibyte_read(EEPROM_num_size,EEPROM_offY);
+        compass.setOffset(offX,offY);
+        SerialBT.print("OFFSET EEPROM = ");SerialBT.print(offX);SerialBT.print(" ");SerialBT.print(offY);
+    }
+    else{//usar valor do sketch
+        compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+        SerialBT.print("OFFSET DEFAULT = ");SerialBT.print(BUSS_X_OFFSET);SerialBT.print(" ");SerialBT.print(BUSS_Y_OFFSET);
+    }
+
+    delay(10000);
+
     //rotina de aquisicao inicial
     acquire_hall();
     acquire_GPS();

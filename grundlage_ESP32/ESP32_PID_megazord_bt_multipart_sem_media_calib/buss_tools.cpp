@@ -5,6 +5,7 @@
 #include "buss_tools.h"
 #include "supp_tools.h"
 #include "BluetoothSerial.h"
+#include "EEPROM_handler.h"
 
 void acquire_buss(){
     int done=0;
@@ -108,6 +109,9 @@ void calib_buss(void){
     if(calib_flag==2){
         digitalWrite(LED_Hall, LOW);
         compass.setOffset(offX, offY);
+        multibyte_write(1,1,EEPROM_off_flag); //subir flag de valores válidos
+        multibyte_write(EEPROM_num_size,offX,EEPROM_offX);
+        multibyte_write(EEPROM_num_size,offY,EEPROM_offY);
     }
 
     //habilitar timers
