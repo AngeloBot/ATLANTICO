@@ -19,11 +19,21 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) {
     
+  int done=0;
+  int new_waypoint
+        
+  if (SerialBT.available()){
+  
+      command_reading=SerialBT.read();
+      
+      if(command_reading=='b'){
+        SerialBT.println("going back");
+      }
+      else{
+          
+          new_waypoint=command_reading-'0';
+          SerialBT.println(new_waypoint);
+          }
+      }
   }
-  if (SerialBT.available()) {
-    
-  }
-  delay(20);
-}

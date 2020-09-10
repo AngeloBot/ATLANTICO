@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include <EEPROM.h>
 
+#include "EEPROM_handler.h"
+
 #include <HMC5883L.h>
 
 
@@ -157,28 +159,6 @@ void IRAM_ATTR onTimer2(){
 
 }
 
-void set_waypoint(){
-    int done=0;
-    int new_waypoint
-
-    while(done==0){
-        
-        if (SerialBT.available()){
-        
-            command_reading=SerialBT.read();
-            
-            if(command_reading=='b'){
-
-            }
-            else{
-                
-                new_waypoint=command_reading-'0';
-                }
-            }
-        }
-    }
-}
-
 void setup() {
     
     int offX;
@@ -242,7 +222,18 @@ void setup() {
     SerialBT.begin("ESP32_veleiro_autonomo");
     
     // Set calibration offset. See HMC5883L_calibration.ino
-    compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+    if((int) EEPROM.read(EEPROM_off_flag)== 1){//valor válido de offset já guardado 
+        offX=multibyte_read(EEPROM_num_size,EEPROM_offX);
+        offY=multibyte_read(EEPROM_num_size,EEPROM_offY);
+        compass.setOffset(offX,offY);
+        SerialBT.print("OFFSET EEPROM = ");SerialBT.print(offX);SerialBT.print(" ");SerialBT.print(offY);
+    }
+    else{//usar valor do sketch
+        compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
+        SerialBT.print("OFFSET DEFAULT = ");SerialBT.print(BUSS_X_OFFSET);SerialBT.print(" ");SerialBT.print(BUSS_Y_OFFSET);
+    }
+
+    delay(10000);
 
     //rotina de aquisicao inicial
     acquire_hall();
@@ -265,18 +256,8 @@ void loop() {
         
         switch(command_reading){
             case 'i': //iniciar calibração
-                SerialBT.println("Calibrating...");
+                SerialBT.println("Calibrating");
                 calib_buss();
-                break;
-            case 'r': //reiniciar ESP
-                SerialBT.println("Restarting...");
-                delay(3000);
-                ESP.restart();
-                break;
-            case 'w': //set waypoint
-                SerialBT.println("Setting waypoint...");
-                SerialBT.print("waypoint_counter = "); SerialBT.println(waypoint_count);
-                set_waypoint();
                 break;
         }
     }
