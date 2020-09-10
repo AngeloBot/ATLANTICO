@@ -159,6 +159,7 @@ void IRAM_ATTR onTimer2(){
 
 void set_waypoint(){
     int done=0;
+    int new_waypoint;
     byte command_reading;
 
     while(done==0){
@@ -179,15 +180,16 @@ void set_waypoint(){
                     
                     SerialBT.print("new_waypoint ");SerialBT.println(new_waypoint);
                     waypoint_count=new_waypoint;
+                    done=1;
                     delay(3000);
                 }
                 else{
                     SerialBT.println("Invalid Number");
                 }
             }
-      }
+          }
         }
-    }
+    
 }
 
 void setup() {
