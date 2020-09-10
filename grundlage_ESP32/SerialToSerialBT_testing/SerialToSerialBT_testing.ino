@@ -21,11 +21,13 @@ void setup() {
 void loop() {
     
   int done=0;
-  int new_waypoint
+  int new_waypoint;
+  int command_reading;
         
   if (SerialBT.available()){
   
       command_reading=SerialBT.read();
+      SerialBT.print("command_reading ");SerialBT.println(command_reading);
       
       if(command_reading=='b'){
         SerialBT.println("going back");
@@ -33,7 +35,7 @@ void loop() {
       else{
           
           new_waypoint=command_reading-'0';
-          SerialBT.println(new_waypoint);
+          SerialBT.print("new_waypoint ");SerialBT.println(new_waypoint);
           }
       }
   }
