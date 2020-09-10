@@ -22,7 +22,7 @@ void loop() {
     
   int done=0;
   int new_waypoint;
-  int command_reading;
+  byte command_reading;
         
   if (SerialBT.available()){
   
@@ -32,10 +32,11 @@ void loop() {
       if(command_reading=='b'){
         SerialBT.println("going back");
       }
-      else{
+      else if (command_reading>=48 && command_reading<=57){
           
           new_waypoint=command_reading-'0';
           SerialBT.print("new_waypoint ");SerialBT.println(new_waypoint);
           }
       }
+  delay(1000);
   }
