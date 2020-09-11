@@ -156,7 +156,7 @@ void IRAM_ATTR onTimer2(){
 
 void setup() {
     
-    Serial.begin(115200);
+    //Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
@@ -193,7 +193,7 @@ void setup() {
 
     while (!compass.begin()){
       //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-        SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
+        //SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);
@@ -211,7 +211,7 @@ void setup() {
     compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
 
     //iniciar bluetooth definindo nome do dispositivo
-    SerialBT.begin("ESP32_veleiro_autonomo");
+    SerialBT.begin("ESP32test");
     
     //rotina de aquisicao inicial
     acquire_hall();

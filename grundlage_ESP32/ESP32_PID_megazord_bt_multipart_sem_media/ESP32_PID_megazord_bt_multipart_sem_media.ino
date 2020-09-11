@@ -211,7 +211,7 @@ void setup() {
     compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
 
     //iniciar bluetooth definindo nome do dispositivo
-    SerialBT.begin("ESP32_veleiro_autonomo");
+    SerialBT.begin("ESP32test");
     
     //rotina de aquisicao inicial
     acquire_hall();
