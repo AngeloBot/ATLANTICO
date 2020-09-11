@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 
-SoftwareSerial serial1(6, 7); // RX, TX
+SoftwareSerial serial1(12, 13); // RX, TX
 TinyGPS gps1;
 
 void setup() {

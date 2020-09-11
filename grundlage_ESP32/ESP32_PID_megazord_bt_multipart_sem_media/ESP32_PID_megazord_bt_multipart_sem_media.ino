@@ -191,9 +191,10 @@ void setup() {
     timerAlarmWrite(timer2, 500, true); // 500 * 100 us = 0.05 s (20Hz), autoreload true
     timerAlarmEnable(timer2); // enable
 
+    
     while (!compass.begin()){
-      //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
-        SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
+        Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+        //SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
     compass.setRange(HMC5883L_RANGE_1_3GA);

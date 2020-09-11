@@ -418,7 +418,7 @@ void setup() {
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    //SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    SerialGPS.begin(9600, SERIAL_8N1, 3, 1);
     
     servo.attach(servoPin);
     servo.write(pos_zero);

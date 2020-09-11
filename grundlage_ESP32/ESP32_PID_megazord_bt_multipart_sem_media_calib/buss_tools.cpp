@@ -23,7 +23,7 @@ void acquire_buss(){
     // Formula: (deg + (min / 60.0)) / (180 / M_PI);
 
     //rumo_real_int=-rumo_real_int;
-    rumo_real-=PI;
+    rumo_real-=PI/2;
     rumo_real += desvio_waypoint*(PI/180);
     //SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
     

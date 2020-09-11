@@ -22,8 +22,8 @@
 #define constante 10
 
 //buss
-#define BUSS_X_OFFSET 171
-#define BUSS_Y_OFFSET -189
+#define BUSS_X_OFFSET 200
+#define BUSS_Y_OFFSET -230
 
 //GPS
 #define waypoint_radius 3 //em metros

@@ -5,30 +5,30 @@
 #include "def_system.h"
 #include "acquire_GPS.h"
 
+#include "BluetoothSerial.h"
+
 void acquire_GPS(void){
-    
-    unsigned long dist_waypoint;
 
     while (SerialGPS.available() > 0) {
         gps.encode(SerialGPS.read());
     }
     
-    Serial.print("GPS= ");Serial.println(gps.satellites.value());
+    SerialBT.print("GPS= ");SerialBT.println(gps.satellites.value());
 
     if (gps.satellites.value() >= 4) {
     
         lat_barco=gps.location.lat();
         long_barco=gps.location.lng();
-        Serial.print("LAT=");  Serial.println(lat_barco, 6);
-        Serial.print("LONG="); Serial.println(long_barco, 6);
+        //Serial.print("LAT=");  Serial.println(lat_barco, 6);
+        //Serial.print("LONG="); Serial.println(long_barco, 6);
         
 
         dist_waypoint=(unsigned long)TinyGPSPlus::distanceBetween(lat_barco,long_barco,lat_waypoint,long_waypoint); //m
         
-        Serial.print("Dist ");Serial.println(dist_waypoint);
+        //Serial.print("Dist ");Serial.println(dist_waypoint);
 
         rumo_ideal =(double)TinyGPSPlus::courseTo(lat_barco,long_barco,lat_waypoint,long_waypoint);
-        Serial.print("Course ");Serial.println(rumo_ideal);
+        //Serial.print("Course ");Serial.println(rumo_ideal);
 
         if (waypoint_radius > dist_waypoint){
             waypoint_count += 1;
@@ -45,4 +45,12 @@ void acquire_GPS(void){
 
     flag_gps--;
 
+}
+
+void GPS_info_bt(void){
+  
+    SerialBT.print("LAT=");  SerialBT.println(lat_barco, 6);
+    SerialBT.print("LONG="); SerialBT.println(long_barco, 6);
+    SerialBT.print("Course= "); SerialBT.println(rumo_ideal);
+    SerialBT.print("Dist= "); SerialBT.println(dist_waypoint);
 }

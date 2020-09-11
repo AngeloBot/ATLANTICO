@@ -41,6 +41,7 @@ int cte=0;
 //variáveis de estado da máquina
 int current_state = 0;
 int previous_state = 0;
+int command_flag=3; //0=> ~report+~move | 1=> ~report+move | 2=> report+~move | 3=> report+move || report=>bit+ significativo || move=>bit- significativo
 
 //erro de rumo
 int rumo_margin_flag=0; //1-> rumo está dentro da margem de erro estipulada | 0->não está dentro
@@ -62,12 +63,12 @@ int amostra_buss=0;
 //=================================================================================
 
 TinyGPSPlus gps;
-HardwareSerial SerialGPS(1);//RX1 e TX1
+HardwareSerial SerialGPS(1);//RX2 e TX2
 
 //variáveis GPS====================================================================
 
-double rumo_ideal = 0;
-double rumo_ideal_PID=0;
+float rumo_ideal = 0;
+float rumo_ideal_PID=0;
 //double rumo_idel_save=0;
 //double rumo_ideal = 170;
 double lat_barco,long_barco;
@@ -76,6 +77,7 @@ double lat_barco,long_barco;
 
 double lat_waypoint, long_waypoint;
 float desvio_waypoint;
+unsigned long dist_waypoint;
 
 //lista de waypoints com respectivos desvios magnéticos
 //float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.42, -23.554985, -46.876259, -21.42};
@@ -156,12 +158,12 @@ void IRAM_ATTR onTimer2(){
 
 void setup() {
     
-    //Serial.begin(115200);
+    Serial.begin(115200);
     pinMode (LED_Hall, OUTPUT);
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    //SerialGPS.begin(9600, SERIAL_8N1, 16, 17);
+    SerialGPS.begin(9600, SERIAL_8N1,3, 1);
     
     servo.attach(servoPin);
     servo.write(pos_zero);
@@ -192,7 +194,7 @@ void setup() {
     timerAlarmEnable(timer2); // enable
 
     while (!compass.begin()){
-      //Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+      Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
         //SerialBT.println("Could not find a valid HMC5883L sensor, check wiring!");
     }
     // Set measurement range
@@ -225,17 +227,43 @@ void setup() {
 void loop() {
 
     char command_reading;
-    
-    bt_alt_report();
 
+    if(command_flag == 2 || command_flag == 3){
+      bt_alt_report();  
+    }
+    
     if (SerialBT.available()){
     
         command_reading=SerialBT.read();
         
         switch(command_reading){
-            case 'i': //iniciar calibração
-                SerialBT.println("Calibrating");
+            case 'b': //iniciar calibração da bússola
+                SerialBT.println("Calibrating...");
                 calib_buss();
+                break;
+            
+            case 'c': // ligar/desligar comunicação;
+                SerialBT.println("Changing communication...");
+                command_flag^=(1<<1); 
+                break;
+                
+            case 'g': //gps info
+                GPS_info_bt();
+                break;
+                
+            case 'm': //ligar/desligar movimento
+                SerialBT.println("Changing movement...");
+                command_flag ^=1;
+                break;
+                   
+            case 'r': //reiniciar
+                SerialBT.println("Restarting...");
+                delay(3000);
+                ESP.restart();
+                break;
+
+            case 'w': //show waypoint
+                SerialBT.print("Current waypoint= ");SerialBT.println(waypoint_count);
                 break;
         }
     }
@@ -244,6 +272,7 @@ void loop() {
     if(abs(SOMAE)>=100){
       SOMAE=0;  
     }
+
     
     
     if (flag_hall>0) {
@@ -257,387 +286,390 @@ void loop() {
     if(flag_buss>0){
 
         acquire_buss();
-
-        //mover servo apenas quando lê a bússola
-        switch (current_state){
-    
-            case 0: //à favor-----------------------------------------------------------------------------------------------------
-
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-                //move_servo(calc_PID(erro_rumo));
-                
-                if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
+        
+        if(command_flag == 1 || command_flag == 3){
+        
+          //mover servo apenas quando lê a bússola
+          switch (current_state){
+      
+              case 0: //à favor-----------------------------------------------------------------------------------------------------
+  
+                  pos=calc_PID(erro_rumo);
+                  servo.write(pos);
+                  //move_servo(calc_PID(erro_rumo));
+                  
+                  if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0110 || status_Hall==B0100){
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB 
+                  }
+                  else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                  }
+  
+                  else{
                     previous_state = current_state;
-                    current_state=3; //ir para contra por BB 
-                }
-                else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
+                  }
+                  
+                  break;
+  
+              case 3: //contra por BB------------------------------------------------------------------------------------------------
+                  
+                  if(previous_state!=3){
+                      switch(previous_state){
+                          case 0:
+                              if(rumo_margin_flag==0){
+                                  cte=-constante;
+                              }
+                              else{
+                                  cte=0;
+                              }
+                              break;
+                          case 4:
+                              cte=constante;
+                              break;
+                          case 5:
+                              cte=0;
+                              break;
+                          case 7:
+                              cte=constante;
+                              break;
+                          case 9:
+                              if(rumo_margin_flag==0){
+                                  cte=-constante;
+                              }
+                              else{
+                                  cte=0;
+                              }
+                              break;
+                      }
+                      rumo_ideal_PID=rumo_real+cte;                   
+                  }
+                  E=calc_erro_rumo(rumo_ideal_PID);
+                  Serial.print("E= "); Serial.println(E);
+                  pos=calc_PID(E);
+                  if(previous_state==12){
+                      pos=0;
+                  }
+                  servo.write(pos);
+                  if(status_Hall==B0100 || status_Hall==B0110){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=7; //ir para arribar_1 BB
+                      cte=0;
+                  }
+                  else if(erro_rumo < -ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B1100){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=11; //ir para Jib BB
+                      cte=0;
+                  }
+                  else if(erro_rumo < - lambda_rumo && status_Hall==B1000){//rumo_ideal está para BB e pode orçar
+                      previous_state = current_state;
+                      current_state=9; //ir para orçar BB
+                      cte=0;
+                  }
+                  else if(erro_rumo > lambda_rumo) {//rumo_ideal está para BE
+                      previous_state = current_state;
+                      current_state=5; //ir para arribar_2 BB
+                      cte=0;
+                  }
+  
+                  else if(status_Hall==B0000){
+                      previous_state = current_state;
+                      current_state=0; //ir para à favor
+                      cte=0;
+                  }
+  
+                  else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                      cte=0;
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                }
-
-                else{
-                  previous_state = current_state;
-                }
-                
-                break;
-
-            case 3: //contra por BB------------------------------------------------------------------------------------------------
-                
-                if(previous_state!=3){
-                    switch(previous_state){
-                        case 0:
-                            if(rumo_margin_flag==0){
-                                cte=-constante;
-                            }
-                            else{
-                                cte=0;
-                            }
-                            break;
-                        case 4:
-                            cte=constante;
-                            break;
-                        case 5:
-                            cte=0;
-                            break;
-                        case 7:
-                            cte=constante;
-                            break;
-                        case 9:
-                            if(rumo_margin_flag==0){
-                                cte=-constante;
-                            }
-                            else{
-                                cte=0;
-                            }
-                            break;
-                    }
-                    rumo_ideal_PID=rumo_real+cte;                   
-                }
-                E=calc_erro_rumo(rumo_ideal_PID);
-                Serial.print("E= "); Serial.println(E);
-                pos=calc_PID(E);
-                if(previous_state==12){
-                    pos=0;
-                }
-                servo.write(pos);
-                if(status_Hall==B0100 || status_Hall==B0110){
-                    flag_13=1;
+                  }
+                  break;
+  
+              case 4: //contra por BB------------------------------------------------------------------------------------------------
+              
+                  if(previous_state!=4){
+                      switch(previous_state){
+                          case 0:
+                              if(rumo_margin_flag==0){
+                                  cte=constante;
+                              }
+                              else{
+                                  cte=0;
+                              }
+                              break;
+                          case 3:
+                              cte=-constante;
+                              break;
+                          case 6:
+                              cte=0;
+                              break;
+                          case 8:
+                              cte=-constante;
+                              break;
+                          case 10:
+                              if(rumo_margin_flag==0){
+                                  cte=constante;
+                              }
+                              else{
+                                  cte=0;
+                              }
+                              break;
+                      }
+                      rumo_ideal_PID=rumo_real+cte;                   
+                  }
+                  E=calc_erro_rumo(rumo_ideal_PID);
+                  Serial.print("E= "); Serial.println(E);
+                  pos=calc_PID(E);
+                  if(previous_state==11){
+                      pos=0;
+                  }
+                  servo.write(pos);
+  
+                  if(status_Hall==B0010 || status_Hall==B0110){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=8; //ir para arribar_1 BE
+                      cte=0;   
+                  }
+                  else if(erro_rumo > ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B0011){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=12; //ir para Jib BE
+                      cte=0;        
+                  }
+                  else if(erro_rumo > lambda_rumo && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
+                      previous_state = current_state;
+                      current_state=10; //ir para orçar BE
+                      cte=0;    
+                  }
+                  else if(erro_rumo < -lambda_rumo) {//rumo_ideal está para BB
+                      previous_state = current_state;
+                      current_state=6; //ir para arribar_2 BE
+                      cte=0;
+                  }
+                  
+                  else if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0100){
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB
+                      cte=0;
+                  }
+  
+                  else if(status_Hall==B0000){
+                      previous_state = current_state;
+                      current_state=0; //ir para à favor
+                      cte=0;
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=7; //ir para arribar_1 BB
-                    cte=0;
-                }
-                else if(erro_rumo < -ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B1100){
-                    flag_13=1;
+                  }
+                  break;
+  
+              case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
+              
+                  pos=calc_PID(erro_rumo);
+                  servo.write(pos);
+  
+                  if((status_Hall!=B1000 && status_Hall!=B1100) || abs(erro_rumo)<lambda_rumo || erro_rumo<-lambda_rumo) {
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=11; //ir para Jib BB
-                    cte=0;
-                }
-                else if(erro_rumo < - lambda_rumo && status_Hall==B1000){//rumo_ideal está para BB e pode orçar
+                  }
+                  break;
+  
+              case 6: //arribar_2 BE-------------------------------------------------------------------------------------------------
+              
+                  pos=calc_PID(erro_rumo);
+                  servo.write(pos);
+  
+                  if((status_Hall!=B0011 && status_Hall!=B0001)  || abs(erro_rumo)<lambda_rumo || erro_rumo>lambda_rumo) {
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=9; //ir para orçar BB
-                    cte=0;
-                }
-                else if(erro_rumo > lambda_rumo) {//rumo_ideal está para BE
+                  }
+                  break;
+  
+              case 7: //arribar_1 BB-------------------------------------------------------------------------------------------------
+  
+                  if (flag_13==1){
+                      timer_13=millis();
+                      flag_13=0;
+                  }
+                  
+                  switch(status_Hall){
+                      case 4:
+                          E=15;
+                          break;
+                      case 6:
+                          E=40;
+                          break;
+                      default:
+                          E=0;
+                          break;
+                  }
+                  SOMAE=0;
+                  pos=calc_PD(E);
+                  servo.write(pos);
+  
+                  if(status_Hall!=B0100 && status_Hall!=B0110 ) {
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB
+                  }
+                  else if(millis()-timer_13 > deltat ){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=13; //ir para espera
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=5; //ir para arribar_2 BB
-                    cte=0;
-                }
-
-                else if(status_Hall==B0000){
+                  }
+                  break;
+                  
+              
+              case 8: //arribar_1 BE-------------------------------------------------------------------------------------------------
+  
+                  if (flag_13==1){
+                      timer_13=millis();
+                      flag_13=0;
+                  }
+  
+                  switch(status_Hall){
+                      case 2:
+                          E=-15;
+                          break;
+                      case 6:
+                          E=-40;
+                          break;
+                      default:
+                          E=0;
+                          break;
+                  }
+                  SOMAE=0;
+                  pos=calc_PD(E);
+                  servo.write(pos);
+  
+                  if(status_Hall!=B0110 && status_Hall!=B0010 ){
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                  }
+  
+                  else if(millis()-timer_13 > deltat ){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=13; //ir para espera
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=0; //ir para à favor
-                    cte=0;
-                }
-
-                else if(status_Hall==B0001 || status_Hall==B0011 || status_Hall==B0010){
+                  }
+                  break;
+  
+              case 9: //orçar BB-----------------------------------------------------------------------------------------------------
+              
+                  SOMAE=0;
+                  pos=calc_PD(-10);
+                  servo.write(pos);
+  
+                  if((status_Hall!=B1000)|| abs(erro_rumo)<lambda_rumo || erro_rumo>lambda_rumo) {
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                    cte=0;
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 4: //contra por BB------------------------------------------------------------------------------------------------
-            
-                if(previous_state!=4){
-                    switch(previous_state){
-                        case 0:
-                            if(rumo_margin_flag==0){
-                                cte=constante;
-                            }
-                            else{
-                                cte=0;
-                            }
-                            break;
-                        case 3:
-                            cte=-constante;
-                            break;
-                        case 6:
-                            cte=0;
-                            break;
-                        case 8:
-                            cte=-constante;
-                            break;
-                        case 10:
-                            if(rumo_margin_flag==0){
-                                cte=constante;
-                            }
-                            else{
-                                cte=0;
-                            }
-                            break;
-                    }
-                    rumo_ideal_PID=rumo_real+cte;                   
-                }
-                E=calc_erro_rumo(rumo_ideal_PID);
-                Serial.print("E= "); Serial.println(E);
-                pos=calc_PID(E);
-                if(previous_state==11){
-                    pos=0;
-                }
-                servo.write(pos);
-
-                if(status_Hall==B0010 || status_Hall==B0110){
-                    flag_13=1;
+                  }
+                  break;
+  
+              case 10: //orçar BE----------------------------------------------------------------------------------------------------
+              
+                  SOMAE=0;
+                  pos=calc_PD(10);
+                  servo.write(pos);
+  
+                  if((status_Hall!=B0001) || abs(erro_rumo)<lambda_rumo || erro_rumo<-lambda_rumo) {
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=8; //ir para arribar_1 BE
-                    cte=0;   
-                }
-                else if(erro_rumo > ang_jibe && abs(erro_rumo)>(90-lambda_jibe) && status_Hall==B0011){
-                    flag_13=1;
+                  }
+                  break;
+  
+              case 11: //Jibe BB------------------------------------------------------------------------------------------------------
+  
+                  if (flag_13==1){
+                      timer_13=millis();
+                      flag_13=0;
+                  }
+                  
+                  SOMAE=0;
+                  servo.write(leme_max);
+  
+                  if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B1100 && status_Hall!=B1000 && status_Hall!=B0000 && status_Hall!=B0100)){
+                      previous_state = current_state;
+                      current_state=4; //ir para contra por BE
+                  }
+  
+                  else if(millis()-timer_13 > deltat ){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=13; //ir para espera
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=12; //ir para Jib BE
-                    cte=0;        
-                }
-                else if(erro_rumo > lambda_rumo && status_Hall==B0001){//rumo_ideal está para BE e pode orçar
+                  }
+                  break;
+  
+              case 12: //Jibe BE------------------------------------------------------------------------------------------------------
+  
+                  if (flag_13==1){
+                      timer_13=millis();
+                      flag_13=0;
+                  }
+  
+                  SOMAE=0;
+                  servo.write(leme_min);
+  
+                  if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B0011 && status_Hall!=B0001 && status_Hall!=B0000 && status_Hall!=B0010)) {
+                      previous_state = current_state;
+                      current_state=3; //ir para contra por BB
+                  }
+  
+                  else if(millis()-timer_13 > deltat ){
+                      flag_13=1;
+                      previous_state = current_state;
+                      current_state=13; //ir para espera
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=10; //ir para orçar BE
-                    cte=0;    
-                }
-                else if(erro_rumo < -lambda_rumo) {//rumo_ideal está para BB
+                  }
+                  break;
+  
+              case 13: //espera------------------------------------------------------------------------------------------------------
+              
+                  //leme ao centro
+                  servo.write(90);
+  
+                  if (flag_13==1){
+                      timer_13=millis();
+                      flag_13=0;
+                  }
+                  if(millis()-timer_13 > deltat ){
+                      previous_state = current_state;
+                      current_state=0; //ir para à favor
+                  }
+                  else{
                     previous_state = current_state;
-                    current_state=6; //ir para arribar_2 BE
-                    cte=0;
-                }
-                
-                else if(status_Hall==B1000 || status_Hall==B1100 || status_Hall==B0100){
-                    previous_state = current_state;
-                    current_state=3; //ir para contra por BB
-                    cte=0;
-                }
-
-                else if(status_Hall==B0000){
-                    previous_state = current_state;
-                    current_state=0; //ir para à favor
-                    cte=0;
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 5: //arribar_2 BB-------------------------------------------------------------------------------------------------
-            
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-
-                if((status_Hall!=B1000 && status_Hall!=B1100) || abs(erro_rumo)<lambda_rumo || erro_rumo<-lambda_rumo) {
-                    previous_state = current_state;
-                    current_state=3; //ir para contra por BB
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 6: //arribar_2 BE-------------------------------------------------------------------------------------------------
-            
-                pos=calc_PID(erro_rumo);
-                servo.write(pos);
-
-                if((status_Hall!=B0011 && status_Hall!=B0001)  || abs(erro_rumo)<lambda_rumo || erro_rumo>lambda_rumo) {
-                    previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 7: //arribar_1 BB-------------------------------------------------------------------------------------------------
-
-                if (flag_13==1){
-                    timer_13=millis();
-                    flag_13=0;
-                }
-                
-                switch(status_Hall){
-                    case 4:
-                        E=15;
-                        break;
-                    case 6:
-                        E=40;
-                        break;
-                    default:
-                        E=0;
-                        break;
-                }
-                SOMAE=0;
-                pos=calc_PD(E);
-                servo.write(pos);
-
-                if(status_Hall!=B0100 && status_Hall!=B0110 ) {
-                    previous_state = current_state;
-                    current_state=3; //ir para contra por BB
-                }
-                else if(millis()-timer_13 > deltat ){
-                    flag_13=1;
-                    previous_state = current_state;
-                    current_state=13; //ir para espera
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-                
-            
-            case 8: //arribar_1 BE-------------------------------------------------------------------------------------------------
-
-                if (flag_13==1){
-                    timer_13=millis();
-                    flag_13=0;
-                }
-
-                switch(status_Hall){
-                    case 2:
-                        E=-15;
-                        break;
-                    case 6:
-                        E=-40;
-                        break;
-                    default:
-                        E=0;
-                        break;
-                }
-                SOMAE=0;
-                pos=calc_PD(E);
-                servo.write(pos);
-
-                if(status_Hall!=B0110 && status_Hall!=B0010 ){
-                    previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                }
-
-                else if(millis()-timer_13 > deltat ){
-                    flag_13=1;
-                    previous_state = current_state;
-                    current_state=13; //ir para espera
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 9: //orçar BB-----------------------------------------------------------------------------------------------------
-            
-                SOMAE=0;
-                pos=calc_PD(-10);
-                servo.write(pos);
-
-                if((status_Hall!=B1000)|| abs(erro_rumo)<lambda_rumo || erro_rumo>lambda_rumo) {
-                    previous_state = current_state;
-                    current_state=3; //ir para contra por BB
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 10: //orçar BE----------------------------------------------------------------------------------------------------
-            
-                SOMAE=0;
-                pos=calc_PD(10);
-                servo.write(pos);
-
-                if((status_Hall!=B0001) || abs(erro_rumo)<lambda_rumo || erro_rumo<-lambda_rumo) {
-                    previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 11: //Jibe BB------------------------------------------------------------------------------------------------------
-
-                if (flag_13==1){
-                    timer_13=millis();
-                    flag_13=0;
-                }
-                
-                SOMAE=0;
-                servo.write(leme_max);
-
-                if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B1100 && status_Hall!=B1000 && status_Hall!=B0000 && status_Hall!=B0100)){
-                    previous_state = current_state;
-                    current_state=4; //ir para contra por BE
-                }
-
-                else if(millis()-timer_13 > deltat ){
-                    flag_13=1;
-                    previous_state = current_state;
-                    current_state=13; //ir para espera
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 12: //Jibe BE------------------------------------------------------------------------------------------------------
-
-                if (flag_13==1){
-                    timer_13=millis();
-                    flag_13=0;
-                }
-
-                SOMAE=0;
-                servo.write(leme_min);
-
-                if(abs(erro_rumo)<lambda_jibe || (status_Hall!=B0011 && status_Hall!=B0001 && status_Hall!=B0000 && status_Hall!=B0010)) {
-                    previous_state = current_state;
-                    current_state=3; //ir para contra por BB
-                }
-
-                else if(millis()-timer_13 > deltat ){
-                    flag_13=1;
-                    previous_state = current_state;
-                    current_state=13; //ir para espera
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-
-            case 13: //espera------------------------------------------------------------------------------------------------------
-            
-                //leme ao centro
-                servo.write(90);
-
-                if (flag_13==1){
-                    timer_13=millis();
-                    flag_13=0;
-                }
-                if(millis()-timer_13 > deltat ){
-                    previous_state = current_state;
-                    current_state=0; //ir para à favor
-                }
-                else{
-                  previous_state = current_state;
-                }
-                break;
-        }
+                  }
+                  break;
+          }
+      }
     }
 }

@@ -21,13 +21,10 @@ void bt_alt_report(void){
     
     SerialBT.println("=======================");
     SerialBT.print("STATE= "); SerialBT.println(current_state);
-    //SerialBT.print("LAST STATE= "); SerialBT.println(previous_state);
     SerialBT.print("POS= "); SerialBT.println(pos);
-    bt_hall_print();
-    //SerialBT.print("SOMAE= "); SerialBT.println(SOMAE);
-    //SerialBT.print("CTE= "); SerialBT.println(cte);
-    //SerialBT.print("V_ang= "); SerialBT.println(v_yaw);
+    SerialBT.print("HALL= "); SerialBT.println(status_Hall,BIN);
     SerialBT.print("rumo= "); SerialBT.println(rumo_real);
+    SerialBT.print("erro rumo= "); SerialBT.println(erro_rumo);
 }
 
 void bt_hall_print(void){
