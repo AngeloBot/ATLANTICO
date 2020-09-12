@@ -1,6 +1,6 @@
 #include <HardwareSerial.h>
 #include <Arduino.h>
-#include <HMC5883L.h>
+#include <QMC5883LCompass.h>
 #include "def_system.h"
 #include "buss_tools.h"
 #include "supp_tools.h"
@@ -10,9 +10,9 @@ void acquire_buss(){
     int done=0;
 
     ultimo_rumo=rumo_real;
-    Vector norm = compass.readNormalize();
+    compass.read();
     // Calculate heading
-    rumo_real = atan2(norm.YAxis, -norm.XAxis);
+    rumo_real = atan2(compass.getY(), -compass.getX());
     // Set declination angle on your location and fix heading
     // You can find your declination on: http://magnetic-declination.com/
     // (+) Positive or (-) for negative
@@ -23,7 +23,7 @@ void acquire_buss(){
     // Formula: (deg + (min / 60.0)) / (180 / M_PI);
 
     //rumo_real_int=-rumo_real_int;
-    rumo_real-=PI/2;
+    rumo_real-=0;
     rumo_real += desvio_waypoint*(PI/180);
     //SerialBT.print("rumo real antes: ");SerialBT.println(rumo_real);
     
@@ -56,14 +56,12 @@ void acquire_buss(){
 
 void calib_buss(void){
 
-    char command_reading=0;
-    int calib_flag=0;
-    int minX = 0;
-    int maxX = 0;
-    int minY = 0;
-    int maxY = 0;
-    int offX = 0;
-    int offY = 0;
+    int calibrationData[3][2];
+    //bool changed = false;
+    //bool done = false;
+    //int t = 0;
+    //int c = 0;
+    int x, y, z;
     
     digitalWrite(LED_Hall, HIGH);
     
@@ -89,29 +87,51 @@ void calib_buss(void){
             
         }
 
-        Vector mag = compass.readRaw();
-    
-        // Determine Min / Max values
-        if (mag.XAxis < minX) minX = mag.XAxis;
-        if (mag.XAxis > maxX) maxX = mag.XAxis;
-        if (mag.YAxis < minY) minY = mag.YAxis;
-        if (mag.YAxis > maxY) maxY = mag.YAxis;
-    
-        // Calculate offsets
-        offX = (maxX + minX)/2;
-        offY = (maxY + minY)/2;
+        // Read compass values
+        compass.read();
 
-        //SerialBT.print("X ");SerialBT.print(offX);
-        //SerialBT.print(" Y ");SerialBT.println(offY);
+        // Return XYZ readings
+        x = compass.getX();
+        y = compass.getY();
+        z = compass.getZ();
+
+        //changed = false;
+
+        if(x < calibrationData[0][0]) {
+            calibrationData[0][0] = x;
+            //changed = true;
+        }
+        if(x > calibrationData[0][1]) {
+            calibrationData[0][1] = x;
+            //changed = true;
+        }
+
+        if(y < calibrationData[1][0]) {
+            calibrationData[1][0] = y;
+            //changed = true;
+        }
+        if(y > calibrationData[1][1]) {
+            calibrationData[1][1] = y;
+            //changed = true;
+        }
+
+        if(z < calibrationData[2][0]) {
+            calibrationData[2][0] = z;
+            //changed = true;
+        }
+        if(z > calibrationData[2][1]) {
+            calibrationData[2][1] = z;
+            //changed = true;
+        }
     }
 
     if(calib_flag==1){
-        SerialBT.println("====================");
-        SerialBT.print("X ");SerialBT.print(offX);
-        SerialBT.print(" Y ");SerialBT.println(offY);
+        //SerialBT.println("====================");
+        //SerialBT.print("X ");SerialBT.print(offX);
+        //SerialBT.print(" Y ");SerialBT.println(offY);
+        compass.setCalibration(calibrationData[0][0],calibrationData[0][1],calibrationData[1][0],calibrationData[1][1],calibrationData[2][0],calibrationData[2][1]);
         delay(3000);
         digitalWrite(LED_Hall, LOW); 
-        compass.setOffset(offX, offY);
     }
 
     //habilitar timers

@@ -1,10 +1,6 @@
 #ifndef DEF_SYSTEM_H_INCLUDED
 #define DEF_SYSTEM_H_INCLUDED
 
-//timings
-#define TIME_SERVO 500 //ms 
-#define TIME_REPORT 300 //ms
-
 //Servo
 #define pos_zero 90 //define posição zero
 #define servoPin 18 //define pin do servo
@@ -26,8 +22,8 @@
 #define constante 10
 
 //buss
-#define BUSS_X_OFFSET 159
-#define BUSS_Y_OFFSET -86
+#define BUSS_X_OFFSET 200
+#define BUSS_Y_OFFSET -230
 
 //GPS
 #define waypoint_radius 3 //em metros
@@ -39,7 +35,7 @@
 #define pinRIGHT 35 
 #define pinFLEFT 32
 #define pinFRIGHT 33
-#define maxHallSignal 300 //variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
+#define maxHallSignal 30 //variável a ser calibrada para valor máximo q atinge a leitura analógica do sensor hall quando ele detecta campo magnético
 
 //mostradores
 #define LED_Hall 2 //builtin led
