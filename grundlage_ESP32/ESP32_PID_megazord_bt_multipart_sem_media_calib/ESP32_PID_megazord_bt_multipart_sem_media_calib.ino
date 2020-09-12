@@ -84,9 +84,9 @@ unsigned long dist_waypoint;
 //lista de waypoints com respectivos desvios magnéticos
 //float lat_long_desvio_waypoint[6] = {-23.556035, -46.877682, -21.42, -23.554985, -46.876259, -21.42};
 //quintal
-double lat_long_desvio_waypoint[6] = {-23.554781, -46.877785,-21.42, -23.554695, -46.877906,-21.42};
+//double lat_long_desvio_waypoint[6] = {-23.554781, -46.877785,-21.42, -23.554695, -46.877906,-21.42};
 //guarapiranga
-//double lat_long_desvio_waypoint[6] = {-23.694047, -46.730670,-21.45, -23.695619, -46.728572, -21.45, -23.695314, -46.732949,-21.45};
+double lat_long_desvio_waypoint[6] = {-23.694047, -46.730670,-21.45, -23.695619, -46.728572, -21.45, -23.695314, -46.732949,-21.45};
 int waypoint_count = 0;
 
 //=================================================================================
