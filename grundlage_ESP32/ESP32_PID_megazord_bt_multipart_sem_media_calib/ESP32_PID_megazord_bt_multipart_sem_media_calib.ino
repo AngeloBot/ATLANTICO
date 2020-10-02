@@ -86,7 +86,7 @@ unsigned long dist_waypoint;
 //quintal
 //double lat_long_desvio_waypoint[6] = {-23.554781, -46.877785,-21.42, -23.554695, -46.877906,-21.42};
 //guarapiranga
-double lat_long_desvio_waypoint[6] = {-23.694047, -46.730670,-21.45, -23.695619, -46.728572, -21.45, -23.695314, -46.732949,-21.45};
+double lat_long_desvio_waypoint[9] = {-23.694047, -46.730670,-21.45, -23.695619, -46.728572, -21.45, -23.695314, -46.732949,-21.45};
 int waypoint_count = 0;
 
 //=================================================================================
@@ -165,7 +165,7 @@ void setup() {
     pinMode (LED_GPS, OUTPUT);
     pinMode (LED_Buss, OUTPUT);
 
-    SerialGPS.begin(9600, SERIAL_8N1,3, 1);
+    SerialGPS.begin(9600, SERIAL_8N1,5, 19);
     
     servo.attach(servoPin);
     servo.write(pos_zero);
@@ -244,7 +244,7 @@ void loop() {
         switch(command_reading){
             case 'b': //iniciar calibração da bússola
                 SerialBT.println("Calibrating...");
-                calib_buss();
+                //calib_buss();
                 break;
             
             case 'c': // ligar/desligar comunicação;
@@ -282,7 +282,7 @@ void loop() {
     
     if (flag_hall>0) {
         acquire_hall();
-        GPS_info_bt();        
+        //GPS_info_bt();        
     }
     
     if(flag_gps>0) {

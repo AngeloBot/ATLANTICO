@@ -16,7 +16,7 @@
 
 //PID
 #define Kp 2.0
-#define Ki 0.05
+#define Ki 0.5
 #define Kd 0.5
 
 //margens de trabalho
@@ -30,8 +30,8 @@
 #define BUSS_Y_OFFSET -86
 
 //GPS
-#define waypoint_radius 3 //em metros
-#define waypoint_num 2 //numero de waypoints na lista
+#define waypoint_radius 15 //em metros
+#define waypoint_num 3 //numero de waypoints na lista
 
 //hall
 //pin para input proveniente sensores

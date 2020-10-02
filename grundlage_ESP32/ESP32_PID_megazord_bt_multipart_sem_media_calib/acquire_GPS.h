@@ -6,7 +6,7 @@
 #include <HardwareSerial.h> 
 #include "BluetoothSerial.h"
 
-extern double lat_long_desvio_waypoint[6];
+extern double lat_long_desvio_waypoint[9];
 extern volatile int flag_gps;
 extern HardwareSerial SerialGPS;
 extern TinyGPSPlus gps;
