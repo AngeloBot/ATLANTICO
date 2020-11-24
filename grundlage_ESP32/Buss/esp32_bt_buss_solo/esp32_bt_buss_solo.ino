@@ -9,10 +9,20 @@
 
 BluetoothSerial SerialBT;
 
+
+#include <ESP32_Servo.h>
+
+Servo myservo;  // create servo object to control a servo
+                // 16 servo objects can be created on the ESP32
+
+int pos = 90;    // variable to store the servo position
+// Recommended PWM GPIO pins on the ESP32 include 2,4,12-19,21-23,25-27,32-33 
+int servoPin = 18;
+
 HMC5883L compass;
 
-#define BUSS_X_OFFSET 0
-#define BUSS_Y_OFFSET 0
+#define BUSS_X_OFFSET 175
+#define BUSS_Y_OFFSET -75
 
 //desvio magnetico embu das artes
 //float desvio_mag = -38-51/60;
@@ -24,6 +34,9 @@ void setup() {
   
   Serial.begin(115200);
 
+  myservo.attach(servoPin);
+
+  myservo.write(pos);
   while (!compass.begin()){
       Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
       //digitalWrite(LED_BUILTIN,HIGH);
@@ -46,7 +59,7 @@ void setup() {
   // Set calibration offset. See HMC5883L_calibration.ino
   compass.setOffset(BUSS_X_OFFSET, BUSS_Y_OFFSET);
   
-
+  
   
   SerialBT.begin("ESP32test"); //Bluetooth device name
   //Serial.println("The device started, now you can pair it with bluetooth!");
@@ -92,8 +105,8 @@ void loop() {
 
   rumo_real = rumo_real * 180/PI;
 
-
+  
   SerialBT.println(rumo_real);
   Serial.println(rumo_real);
-  delay(50);
+  delay(125);
 }
